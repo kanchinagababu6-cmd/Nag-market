@@ -1,42 +1,44 @@
-import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { NextResponse } from "next/server";
+import { getSession } from "@/lib/auth";
 
 const prisma = new PrismaClient();
 
 export async function POST(req: Request) {
   try {
-    const { items, totalAmount, deliveryAddress, phone } = await req.json();
+    const session = await getSession();
+    const body = await req.json();
+    const { customerName, customerPhone, deliveryAddress, paymentMethod, items, totalAmount } = body;
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
+    if (!items || items.length === 0) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
 
-    if (!deliveryAddress || !phone) {
-      return NextResponse.json({ error: "Address and phone are required" }, { status: 400 });
-    }
-
-    const order = await prisma.$transaction(async (tx) => {
-      // 1. Create order record
-      const newOrder = await tx.order.create({
+    // 1. Create order & items transaction, and decrement stock
+    const newOrder = await prisma.$transaction(async (tx) => {
+      const order = await tx.order.create({
         data: {
-          type: "ONLINE",
-          status: "PAID",
+          customerName,
+          customerPhone,
+          deliveryAddress,
+          paymentMethod: paymentMethod || "COD",
           totalAmount: parseFloat(totalAmount),
-          deliveryAddress: `${deliveryAddress} (Tel: ${phone})`,
+          status: "ORDER_PLACED",
+          userId: session ? session.id : null,
           items: {
-            create: items.map((i: any) => ({
-              productId: i.productId,
-              quantity: i.quantity,
-              price: i.price,
+            create: items.map((item: any) => ({
+              productId: item.id,
+              quantity: item.quantity,
+              price: item.price,
             })),
           },
         },
       });
 
-      // 2. Decrement inventory stock
+      // Decrement stock for each purchased item
       for (const item of items) {
         await tx.product.update({
-          where: { id: item.productId },
+          where: { id: item.id },
           data: {
             stock: {
               decrement: item.quantity,
@@ -45,11 +47,12 @@ export async function POST(req: Request) {
         });
       }
 
-      return newOrder;
+      return order;
     });
 
-    return NextResponse.json({ success: true, orderId: order.id }, { status: 201 });
+    return NextResponse.json({ success: true, orderId: newOrder.id });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Failed to process order" }, { status: 500 });
+    console.error("Order error:", error);
+    return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
   }
 }
