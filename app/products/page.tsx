@@ -3,8 +3,8 @@ import { prisma } from "@/lib/prisma";
 
 export default async function ProductsPage() {
   const products = await prisma.product.findMany({
-    where: { active: true, onlineAvailable: true },
-    include: { category: true, inventory: true },
+    where: { active: true },
+    include: { category: true },
     orderBy: { name: "asc" }
   });
 
@@ -19,8 +19,8 @@ export default async function ProductsPage() {
               <span className="badge">{p.category.name}</span>
               <h3>{p.name}</h3>
               <p className="muted">{p.description ?? "Quality supermarket product"}</p>
-              <div className="price">₹{Number(p.sellingPrice).toFixed(2)}</div>
-              <p>Available: {p.inventory?.quantity ?? 0}</p>
+              <div className="price">₹{Number(p.price).toFixed(2)}</div>
+              <p>Available: {p.stock}</p>
             </article>
           ))}
         </div>
