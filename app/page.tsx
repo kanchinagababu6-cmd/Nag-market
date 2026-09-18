@@ -1,105 +1,139 @@
-import Link from "next/link";
 import { getSession } from "@/lib/auth";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export default async function HomePage() {
   const session = await getSession();
 
-  // If unauthenticated, redirect to login
   if (!session) {
     redirect("/login");
   }
 
-  // Pure customer: Skip overview and go directly to Storefront
-  if (session.role === "CUSTOMER") {
-    redirect("/shop");
-  }
-
-  // Pure delivery boy: Go directly to delivery route
-  if (session.role === "DELIVERY_AGENT") {
-    redirect("/delivery");
-  }
-
-  const isStaff = session.role === "SALES_BOY";
-  const isAdmin = session.role === "OWNER" || session.role === "MANAGER";
+  const isOwnerOrManager = session.role === "OWNER" || session.role === "MANAGER";
+  const isSalesStaff = session.role === "SALES_BOY" || isOwnerOrManager;
+  const isDeliveryStaff = session.role === "DELIVERY_AGENT" || isOwnerOrManager;
 
   return (
-    <main className="w-full max-w-5xl mx-auto space-y-8 py-6">
-      {/* Role Banner */}
-      <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="w-full max-w-5xl mx-auto p-4 space-y-6">
+      {/* Top Header */}
+      <div className="flex justify-between items-center bg-slate-900 border border-slate-800 p-5 rounded-3xl">
         <div>
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[11px] font-mono mb-2">
-            Active Role: {session.role}
-          </div>
-          <h1 className="text-2xl font-black text-white">Welcome back, {session.name}</h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {isAdmin ? "Supermarket Master Control & Operations" : "Sales Boy & Terminal Counter Dashboard"}
-          </p>
+          <span className="text-[10px] font-mono uppercase tracking-wider text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20">
+            {session.role} WORKSTATION
+          </span>
+          <h1 className="text-xl font-bold text-white mt-1">Welcome, {session.name}</h1>
+          <p className="text-xs text-slate-400">Select an operational workstation to proceed</p>
         </div>
+        <Link
+          href="/api/auth/logout"
+          className="text-xs px-3.5 py-2 bg-rose-500/10 text-rose-300 border border-rose-500/20 hover:bg-rose-500/20 rounded-xl transition"
+        >
+          Logout
+        </Link>
       </div>
 
-      {/* Available Stations for this user */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Sales Boy & Admin: POS Terminal */}
-        {(isStaff || isAdmin) && (
+      {/* Grid of Workstations */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* 1. Online Customer Storefront */}
+        <Link
+          href="/shop"
+          className="p-5 bg-slate-900 border border-slate-800 hover:border-blue-500 rounded-3xl flex flex-col justify-between transition group"
+        >
+          <div>
+            <span className="text-2xl">🛍️</span>
+            <h3 className="text-base font-bold text-white mt-2">Customer Online Store</h3>
+            <p className="text-xs text-slate-400 mt-1">Browse groceries, add to floating cart, and place orders.</p>
+          </div>
+          <span className="text-xs text-blue-400 font-semibold mt-4 group-hover:translate-x-1 transition-transform inline-block">
+            Open Storefront →
+          </span>
+        </Link>
+
+        {/* 2. Billing POS Terminal */}
+        {isSalesStaff && (
           <Link
             href="/pos"
-            className="p-6 rounded-2xl bg-slate-900 border border-slate-800 hover:border-blue-500 hover:bg-slate-850 transition group flex flex-col justify-between"
+            className="p-5 bg-slate-900 border border-slate-800 hover:border-blue-500 rounded-3xl flex flex-col justify-between transition group"
           >
             <div>
-              <span className="text-3xl p-2.5 rounded-xl bg-slate-800 inline-block mb-3">⚡</span>
-              <h2 className="text-base font-bold text-white group-hover:text-blue-400">Counter POS Terminal</h2>
-              <p className="text-xs text-slate-400 mt-1">Scan barcodes, build checkout receipts, and ring up sales.</p>
+              <span className="text-2xl">⚡</span>
+              <h3 className="text-base font-bold text-white mt-2">Billing POS Terminal</h3>
+              <p className="text-xs text-slate-400 mt-1">Counter barcode checkout, instant inventory sync, and receipts.</p>
             </div>
-            <span className="text-xs font-semibold text-blue-400 mt-4 block">Launch POS →</span>
+            <span className="text-xs text-blue-400 font-semibold mt-4 group-hover:translate-x-1 transition-transform inline-block">
+              Launch POS Terminal →
+            </span>
           </Link>
         )}
 
-        {/* Sales Boy & Admin: Product Upload and Edit */}
-        {(isStaff || isAdmin) && (
+        {/* 3. Product & Stock Restock */}
+        {isSalesStaff && (
           <Link
             href="/admin/products"
-            className="p-6 rounded-2xl bg-slate-900 border border-slate-800 hover:border-emerald-500 hover:bg-slate-850 transition group flex flex-col justify-between"
+            className="p-5 bg-slate-900 border border-slate-800 hover:border-blue-500 rounded-3xl flex flex-col justify-between transition group"
           >
             <div>
-              <span className="text-3xl p-2.5 rounded-xl bg-slate-800 inline-block mb-3">📦</span>
-              <h2 className="text-base font-bold text-white group-hover:text-emerald-400">Product Upload & Stock Edit</h2>
-              <p className="text-xs text-slate-400 mt-1">Add items to catalog, register barcodes, and update prices/quantities.</p>
+              <span className="text-2xl">📦</span>
+              <h3 className="text-base font-bold text-white mt-2">Stock & Barcodes</h3>
+              <p className="text-xs text-slate-400 mt-1">Add new items, configure 8 departments, sub-categories, & images.</p>
             </div>
-            <span className="text-xs font-semibold text-emerald-400 mt-4 block">Open Inventory →</span>
+            <span className="text-xs text-blue-400 font-semibold mt-4 group-hover:translate-x-1 transition-transform inline-block">
+              Manage Inventory →
+            </span>
           </Link>
         )}
 
-        {/* Admin/Manager Exclusive: Delivery Fleet */}
-        {isAdmin && (
+        {/* 4. Delivery Fleet Dispatch */}
+        {isDeliveryStaff && (
           <Link
             href="/delivery"
-            className="p-6 rounded-2xl bg-slate-900 border border-slate-800 hover:border-amber-500 hover:bg-slate-850 transition group flex flex-col justify-between"
+            className="p-5 bg-slate-900 border border-slate-800 hover:border-blue-500 rounded-3xl flex flex-col justify-between transition group"
           >
             <div>
-              <span className="text-3xl p-2.5 rounded-xl bg-slate-800 inline-block mb-3">🛵</span>
-              <h2 className="text-base font-bold text-white group-hover:text-amber-400">Delivery Fleet Monitor</h2>
-              <p className="text-xs text-slate-400 mt-1">Inspect dispatched courier routes and pending delivery statuses.</p>
+              <span className="text-2xl">🛵</span>
+              <h3 className="text-base font-bold text-white mt-2">Delivery Dispatch Hub</h3>
+              <p className="text-xs text-slate-400 mt-1">Real-time delivery orders, 1-tap Google Maps route & WhatsApp.</p>
             </div>
-            <span className="text-xs font-semibold text-amber-400 mt-4 block">View Routes →</span>
+            <span className="text-xs text-blue-400 font-semibold mt-4 group-hover:translate-x-1 transition-transform inline-block">
+              Open Delivery Hub →
+            </span>
           </Link>
         )}
 
-        {/* Admin/Manager Exclusive: Staff Credential Provisioning */}
-        {isAdmin && (
+        {/* 5. Executive Analytics (Step 2 card) */}
+        {isOwnerOrManager && (
           <Link
-            href="/admin/staff"
-            className="p-6 rounded-2xl bg-slate-900 border border-slate-800 hover:border-purple-500 hover:bg-slate-850 transition group flex flex-col justify-between"
+            href="/admin/analytics"
+            className="p-5 bg-slate-900 border border-slate-800 hover:border-blue-500 rounded-3xl flex flex-col justify-between transition group"
           >
             <div>
-              <span className="text-3xl p-2.5 rounded-xl bg-slate-800 inline-block mb-3">🛡️</span>
-              <h2 className="text-base font-bold text-white group-hover:text-purple-400">Staff & Workstation Access</h2>
-              <p className="text-xs text-slate-400 mt-1">Issue logins and passwords for Sales Boys, Delivery Agents, and Managers.</p>
+              <span className="text-2xl">📊</span>
+              <h3 className="text-base font-bold text-white mt-2">Executive Analytics</h3>
+              <p className="text-xs text-slate-400 mt-1">Live revenues, stock replenishment warnings, and top-selling goods.</p>
             </div>
-            <span className="text-xs font-semibold text-purple-400 mt-4 block">Manage Accounts →</span>
+            <span className="text-xs text-blue-400 font-semibold mt-4 group-hover:translate-x-1 transition-transform inline-block">
+              Open Dashboard →
+            </span>
+          </Link>
+        )}
+
+        {/* 6. Staff Accounts */}
+        {isOwnerOrManager && (
+          <Link
+            href="/admin/staff"
+            className="p-5 bg-slate-900 border border-slate-800 hover:border-blue-500 rounded-3xl flex flex-col justify-between transition group"
+          >
+            <div>
+              <span className="text-2xl">🛡️</span>
+              <h3 className="text-base font-bold text-white mt-2">Staff Credentials</h3>
+              <p className="text-xs text-slate-400 mt-1">Issue logins and manage roles for Cashiers and Delivery Agents.</p>
+            </div>
+            <span className="text-xs text-blue-400 font-semibold mt-4 group-hover:translate-x-1 transition-transform inline-block">
+              Manage Staff →
+            </span>
           </Link>
         )}
       </div>
-    </main>
+    </div>
   );
 }
