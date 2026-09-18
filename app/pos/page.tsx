@@ -1,299 +1,182 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
 
-type Product = {
+interface Product {
   id: string;
   name: string;
   barcode: string;
   price: number;
   stock: number;
-};
+  category: string;
+}
 
-type CartItem = {
-  product: Product;
+interface CartItem extends Product {
   quantity: number;
-};
+}
 
-export default function PosTerminal() {
-  const [barcode, setBarcode] = useState("");
+export default function PosPage() {
+  const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [cashTendered, setCashTendered] = useState<string>("");
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(true);
 
+  // Load products on mount
   useEffect(() => {
-    inputRef.current?.focus();
-  }, [cart]);
+    fetch("/api/products")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setProducts(data);
+      })
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const handleScan = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!barcode.trim()) return;
+  // Quick Barcode or Search scan
+  const filteredProducts = products.filter(
+    (p) =>
+      p.name.toLowerCase().includes(query.toLowerCase()) ||
+      p.barcode.toLowerCase().includes(query.toLowerCase())
+  );
 
-    setLoading(true);
-    setError(null);
-    setSuccessMsg(null);
-
-    try {
-      const res = await fetch(`/api/pos/scan?barcode=${encodeURIComponent(barcode.trim())}`);
-      if (!res.ok) {
-        throw new Error("Item not found or out of stock.");
+  const addToCart = (product: Product) => {
+    if (product.stock <= 0) return;
+    setCart((prev) => {
+      const existing = prev.find((item) => item.id === product.id);
+      if (existing) {
+        return prev.map((item) =>
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
       }
-      const product: Product = await res.json();
-
-      setCart((prevCart) => {
-        const existing = prevCart.find((item) => item.product.id === product.id);
-        if (existing) {
-          if (existing.quantity + 1 > product.stock) {
-            setError(`Cannot add more. Only ${product.stock} available.`);
-            return prevCart;
-          }
-          return prevCart.map((item) =>
-            item.product.id === product.id
-              ? { ...item, quantity: item.quantity + 1 }
-              : item
-          );
-        } else {
-          if (product.stock < 1) {
-            setError(`${product.name} is completely out of stock.`);
-            return prevCart;
-          }
-          return [...prevCart, { product, quantity: 1 }];
-        }
-      });
-      setBarcode("");
-    } catch (err: any) {
-      setError(err.message || "Failed to scan item.");
-    } finally {
-      setLoading(false);
-      inputRef.current?.focus();
-    }
+      return [...prev, { ...product, quantity: 1 }];
+    });
   };
 
-  const updateQuantity = (id: string, delta: number) => {
-    setCart((prevCart) =>
-      prevCart
-        .map((item) => {
-          if (item.product.id === id) {
-            const nextQty = item.quantity + delta;
-            if (nextQty > item.product.stock) {
-              setError(`Max stock limit reached for ${item.product.name}`);
-              return item;
-            }
-            return { ...item, quantity: nextQty };
-          }
-          return item;
-        })
-        .filter((item) => item.quantity > 0)
-    );
+  const removeFromCart = (id: string) => {
+    setCart((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const removeItem = (id: string) => {
-    setCart((prevCart) => prevCart.filter((item) => item.product.id !== id));
-  };
-
-  const total = cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
-  const tendered = parseFloat(cashTendered) || 0;
-  const change = Math.max(0, tendered - total);
-
-  const handleCheckout = async () => {
-    if (cart.length === 0) return;
-    setLoading(true);
-    setError(null);
-
-    try {
-      const res = await fetch("/api/pos/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: cart.map((c) => ({
-            productId: c.product.id,
-            quantity: c.quantity,
-            price: c.product.price,
-          })),
-          totalAmount: total,
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Checkout failed. Check stock levels.");
-      }
-
-      setSuccessMsg(`Order complete! Total: ₹${total.toFixed(2)} | Change: ₹${change.toFixed(2)}`);
-      setCart([]);
-      setCashTendered("");
-    } catch (err: any) {
-      setError(err.message || "Checkout failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col md:flex-row">
-      {/* Left: Barcode Scanner & Cart Items */}
-      <div className="flex-1 p-6 flex flex-col">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+    <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+      {/* Top Header with shortcut button to Admin/Products */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
             🛒 POS Counter Terminal
           </h1>
-          <span className="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full font-mono">
-            SALES BOY ONLINE
-          </span>
+          <p className="text-xs text-slate-400">Barcode scanner & quick cashier register</p>
         </div>
 
-        {/* Barcode Input Form */}
-        <form onSubmit={handleScan} className="flex gap-2 mb-4">
-          <input
-            ref={inputRef}
-            type="text"
-            placeholder="Scan barcode gun or enter SKU..."
-            value={barcode}
-            onChange={(e) => setBarcode(e.target.value)}
-            className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-xl transition disabled:opacity-50 text-sm"
-          >
-            {loading ? "..." : "Add"}
-          </button>
-        </form>
-
-        {error && (
-          <div className="bg-red-500/20 border border-red-500/40 text-red-300 text-sm px-4 py-2.5 rounded-xl mb-4">
-            {error}
-          </div>
-        )}
-
-        {successMsg && (
-          <div className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-sm px-4 py-2.5 rounded-xl mb-4">
-            {successMsg}
-          </div>
-        )}
-
-        {/* Current Sale Table */}
-        <div className="flex-1 bg-slate-800/60 rounded-xl border border-slate-800 overflow-hidden flex flex-col">
-          <div className="overflow-y-auto flex-1 p-4">
-            {cart.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-slate-500 text-sm">
-                Ready to scan products...
-              </div>
-            ) : (
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-slate-700 text-slate-400 text-xs uppercase font-medium">
-                    <th className="pb-3">Product</th>
-                    <th className="pb-3">Price</th>
-                    <th className="pb-3 text-center">Qty</th>
-                    <th className="pb-3 text-right">Subtotal</th>
-                    <th className="pb-3 text-right"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-700/50">
-                  {cart.map((item) => (
-                    <tr key={item.product.id}>
-                      <td className="py-3 font-medium text-white">{item.product.name}</td>
-                      <td className="py-3 text-slate-400">₹{item.product.price.toFixed(2)}</td>
-                      <td className="py-3 text-center">
-                        <div className="inline-flex items-center gap-2 bg-slate-700 rounded-lg px-2 py-1">
-                          <button
-                            onClick={() => updateQuantity(item.product.id, -1)}
-                            className="text-slate-300 hover:text-white px-1.5 font-bold"
-                          >
-                            -
-                          </button>
-                          <span className="font-mono text-sm w-5 text-center">{item.quantity}</span>
-                          <button
-                            onClick={() => updateQuantity(item.product.id, 1)}
-                            className="text-slate-300 hover:text-white px-1.5 font-bold"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </td>
-                      <td className="py-3 text-right font-mono text-white">
-                        ₹{(item.product.price * item.quantity).toFixed(2)}
-                      </td>
-                      <td className="py-3 text-right">
-                        <button
-                          onClick={() => removeItem(item.product.id)}
-                          className="text-red-400 hover:text-red-300 text-xs ml-3"
-                        >
-                          ✕
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
+        {/* The Direct Button for Sales Boy & Admin */}
+        <Link
+          href="/admin/products"
+          className="flex items-center gap-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-600/20 transition cursor-pointer"
+        >
+          <span>➕</span> Add / Restock Item
+        </Link>
       </div>
 
-      {/* Right: Summary & Tender Panel */}
-      <div className="w-full md:w-96 bg-slate-800 border-t md:border-t-0 md:border-l border-slate-700 p-6 flex flex-col justify-between">
-        <div>
-          <h2 className="text-lg font-bold text-white mb-6">Payment Summary</h2>
-
-          <div className="space-y-4 mb-6">
-            <div className="flex justify-between text-slate-400 text-sm">
-              <span>Total Items</span>
-              <span className="font-mono text-white">
-                {cart.reduce((sum, item) => sum + item.quantity, 0)}
-              </span>
-            </div>
-            <div className="flex justify-between text-xl font-bold text-white pt-4 border-t border-slate-700">
-              <span>Grand Total</span>
-              <span className="font-mono text-emerald-400">₹{total.toFixed(2)}</span>
-            </div>
-          </div>
-
-          {/* Cash Tender Calculation */}
-          <div className="space-y-3 pt-4 border-t border-slate-700">
-            <label className="block text-xs uppercase font-semibold text-slate-400">
-              Cash Tendered (₹)
-            </label>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left 2 Cols: Product Search & Grid */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="relative">
             <input
-              type="number"
-              placeholder="e.g. 500"
-              value={cashTendered}
-              onChange={(e) => setCashTendered(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-2.5 text-white font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              type="text"
+              placeholder="Scan Barcode gun or type item name..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 text-white text-sm px-4 py-3 rounded-2xl outline-none"
             />
-            {tendered > 0 && (
-              <div className="flex justify-between text-sm pt-2">
-                <span className="text-slate-400">Return Change:</span>
-                <span className={`font-mono font-bold ${change >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                  ₹{change.toFixed(2)}
-                </span>
-              </div>
-            )}
           </div>
+
+          {loading ? (
+            <div className="text-center py-12 text-slate-500 text-sm">Loading catalog...</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {filteredProducts.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => addToCart(p)}
+                  disabled={p.stock <= 0}
+                  className={`text-left p-3.5 rounded-xl border transition flex flex-col justify-between ${
+                    p.stock > 0
+                      ? "bg-slate-900 border-slate-800 hover:border-blue-500 hover:bg-slate-850 cursor-pointer"
+                      : "bg-slate-950 border-slate-900 opacity-50 cursor-not-allowed"
+                  }`}
+                >
+                  <div>
+                    <span className="text-[10px] font-mono text-blue-400 block">{p.category}</span>
+                    <span className="text-sm font-semibold text-white block mt-0.5">{p.name}</span>
+                    <span className="text-[10px] font-mono text-slate-500 block">BC: {p.barcode}</span>
+                  </div>
+                  <div className="mt-3 flex justify-between items-center">
+                    <span className="text-sm font-bold text-emerald-400 font-mono">₹{p.price.toFixed(2)}</span>
+                    <span className="text-[10px] text-slate-400">Stock: {p.stock}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="space-y-3 pt-6">
-          <button
-            onClick={handleCheckout}
-            disabled={cart.length === 0 || loading}
-            className="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3.5 rounded-xl transition shadow-lg disabled:opacity-40"
-          >
-            {loading ? "Processing..." : "Complete Sale & Deduct Stock"}
-          </button>
-          <button
-            onClick={() => {
-              setCart([]);
-              setCashTendered("");
-            }}
-            disabled={cart.length === 0}
-            className="w-full bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm font-medium py-2 rounded-xl transition"
-          >
-            Clear Sale
-          </button>
+        {/* Right 1 Col: Current Receipt Cart */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between h-[600px]">
+          <div>
+            <div className="border-b border-slate-800 pb-3 flex justify-between items-center">
+              <h2 className="text-sm font-bold text-white">Current Cart</h2>
+              <span className="text-xs font-mono text-slate-400">{cart.length} items</span>
+            </div>
+
+            <div className="overflow-y-auto max-h-[420px] divide-y divide-slate-800/60 mt-2">
+              {cart.length === 0 ? (
+                <div className="text-center py-12 text-slate-500 text-xs">Cart is empty. Tap items to ring up.</div>
+              ) : (
+                cart.map((item) => (
+                  <div key={item.id} className="py-2.5 flex justify-between items-center text-xs">
+                    <div>
+                      <div className="font-semibold text-white">{item.name}</div>
+                      <div className="text-slate-400 font-mono">
+                        {item.quantity} × ₹{item.price.toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold font-mono text-emerald-400">
+                        ₹{(item.price * item.quantity).toFixed(2)}
+                      </span>
+                      <button
+                        onClick={() => removeFromCart(item.id)}
+                        className="text-rose-400 hover:text-rose-300 px-1 font-bold text-base"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="border-t border-slate-800 pt-4 space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-semibold text-slate-300">Total Payable</span>
+              <span className="text-xl font-bold font-mono text-emerald-400">₹{total.toFixed(2)}</span>
+            </div>
+            <button
+              onClick={() => {
+                alert(`Order completed! Total: ₹${total.toFixed(2)}`);
+                setCart([]);
+              }}
+              disabled={cart.length === 0}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl transition cursor-pointer"
+            >
+              Print Bill & Complete Cash Sale
+            </button>
+          </div>
         </div>
       </div>
     </div>
