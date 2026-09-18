@@ -2,313 +2,345 @@
 
 import { useState, useEffect } from "react";
 
-type Product = {
+interface Product {
   id: string;
   name: string;
+  barcode: string;
+  category: string;
+  subCategory: string;
   price: number;
   stock: number;
-  category: string;
   imageUrl?: string;
-};
+}
 
-type CartItem = {
-  product: Product;
+interface CartItem extends Product {
   quantity: number;
-};
+}
 
 export default function ShopPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [activeCategory, setActiveCategory] = useState<string>("All");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [cartOpen, setCartOpen] = useState(false);
-  const [address, setAddress] = useState("");
-  const [phone, setPhone] = useState("");
-  const [orderSubmitting, setOrderSubmitting] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
 
+  // Form states
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("COD");
+  const [loading, setLoading] = useState(false);
+
   useEffect(() => {
-    fetchProducts();
+    fetch("/api/products")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setProducts(data);
+      })
+      .catch(console.error);
   }, []);
 
-  const fetchProducts = async () => {
+  // Cart operations
+  const addToCart = (product: Product) => {
+    if (product.stock <= 0) return;
+    setCart((prev) => {
+      const existing = prev.find((item) => item.id === product.id);
+      if (existing) {
+        if (existing.quantity >= product.stock) return prev;
+        return prev.map((item) =>
+          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        );
+      }
+      return [...prev, { ...product, quantity: 1 }];
+    });
+  };
+
+  const updateQuantity = (productId: string, delta: number) => {
+    setCart((prev) =>
+      prev
+        .map((item) => {
+          if (item.id === productId) {
+            const nextQty = item.quantity + delta;
+            return nextQty > 0 ? { ...item, quantity: nextQty } : null;
+          }
+          return item;
+        })
+        .filter(Boolean) as CartItem[]
+    );
+  };
+
+  const cartTotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  const totalCartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
+
+  // Filter products
+  const categories = ["All", ...Array.from(new Set(products.map((p) => p.category)))];
+  const filteredProducts = products.filter((p) => {
+    const matchesCategory = activeCategory === "All" || p.category === activeCategory;
+    const matchesSearch =
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.subCategory.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  const handleCheckout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (cart.length === 0) return;
+    setLoading(true);
+
     try {
-      const res = await fetch("/api/shop/products");
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName: name,
+          customerPhone: phone,
+          deliveryAddress: address,
+          paymentMethod,
+          items: cart,
+          totalAmount: cartTotal,
+        }),
+      });
+
       const data = await res.json();
-      setProducts(data);
-    } catch (e) {
-      console.error(e);
+      if (res.ok && data.success) {
+        setOrderSuccess(data.orderId);
+        setCart([]);
+        setIsCartOpen(false);
+      } else {
+        alert(data.error || "Checkout failed");
+      }
+    } catch (err) {
+      alert("Error placing order");
     } finally {
       setLoading(false);
     }
   };
 
-  const addToCart = (product: Product) => {
-    setCart((prev) => {
-      const found = prev.find((item) => item.product.id === product.id);
-      if (found) {
-        if (found.quantity + 1 > product.stock) return prev;
-        return prev.map((item) =>
-          item.product.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      }
-      return [...prev, { product, quantity: 1 }];
-    });
-  };
-
-  const updateQuantity = (id: string, delta: number) => {
-    setCart((prev) =>
-      prev
-        .map((item) => {
-          if (item.product.id === id) {
-            const nextQty = item.quantity + delta;
-            if (nextQty > item.product.stock) return item;
-            return { ...item, quantity: nextQty };
-          }
-          return item;
-        })
-        .filter((item) => item.quantity > 0)
-    );
-  };
-
-  const total = cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
-
-  const handleCheckout = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (cart.length === 0 || !address.trim() || !phone.trim()) return;
-
-    setOrderSubmitting(true);
-    try {
-      const res = await fetch("/api/shop/order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: cart.map((item) => ({
-            productId: item.product.id,
-            quantity: item.quantity,
-            price: item.product.price,
-          })),
-          totalAmount: total,
-          deliveryAddress: address,
-          phone,
-        }),
-      });
-
-      if (!res.ok) throw new Error("Order creation failed");
-
-      const data = await res.json();
-      setOrderSuccess(data.orderId);
-      setCart([]);
-      setAddress("");
-      setPhone("");
-      fetchProducts(); // Refresh stocks
-    } catch (err: any) {
-      alert(err.message || "Failed to place order.");
-    } finally {
-      setOrderSubmitting(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-20">
-      {/* Top Header */}
-      <header className="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 sm:px-8 py-4 flex justify-between items-center shadow-sm">
+    <div className="w-full max-w-6xl mx-auto space-y-6 pb-20">
+      {/* Top Welcome Bar */}
+      <div className="bg-slate-900 border border-slate-800 p-4 sm:p-6 rounded-3xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-blue-600">Nag Supermarket</h1>
-          <p className="text-xs text-slate-500">Fresh groceries delivered directly to your doorstep</p>
+          <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+            Express 30-Min Delivery
+          </span>
+          <h1 className="text-xl sm:text-2xl font-black text-white mt-1">Nag Online Supermarket</h1>
+          <p className="text-xs text-slate-400">Fresh Groceries, Staples & Daily Essentials</p>
         </div>
-        <button
-          onClick={() => setCartOpen(true)}
-          className="relative bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-xl text-sm transition flex items-center gap-2"
-        >
-          <span>🛒 Cart</span>
-          {cart.length > 0 && (
-            <span className="bg-emerald-400 text-slate-950 text-xs font-bold px-2 py-0.5 rounded-full">
-              {cart.reduce((s, i) => s + i.quantity, 0)}
-            </span>
-          )}
-        </button>
-      </header>
 
-      {/* Confirmation Banner */}
+        {/* Search */}
+        <div className="w-full sm:w-72">
+          <input
+            type="text"
+            placeholder="Search atta, rice, snacks..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs outline-none focus:border-blue-500"
+          />
+        </div>
+      </div>
+
       {orderSuccess && (
-        <div className="max-w-6xl mx-auto m-4 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex justify-between items-center">
+        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex justify-between items-center">
           <div>
-            <p className="font-semibold text-sm">Order placed successfully! ID: #{orderSuccess.slice(-6).toUpperCase()}</p>
-            <p className="text-xs text-emerald-600">Our delivery team is preparing your package.</p>
+            <strong>Order Placed Successfully!</strong> Order ID: #{orderSuccess.slice(0, 8)}
+            <p className="text-[11px] text-emerald-500 mt-0.5">Our delivery agent will reach you shortly.</p>
           </div>
+          <button onClick={() => setOrderSuccess(null)} className="underline text-xs">Dismiss</button>
+        </div>
+      )}
+
+      {/* Categories Filter Pills */}
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+        {categories.map((cat) => (
           <button
-            onClick={() => setOrderSuccess(null)}
-            className="text-xs font-bold text-emerald-800 hover:text-emerald-950"
+            key={cat}
+            onClick={() => setActiveCategory(cat)}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
+              activeCategory === cat
+                ? "bg-blue-600 text-white"
+                : "bg-slate-900 border border-slate-800 text-slate-400 hover:text-white"
+            }`}
           >
-            Dismiss
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      {/* Products Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        {filteredProducts.length === 0 ? (
+          <div className="col-span-full py-16 text-center text-slate-500 text-xs">
+            No items available matching your search.
+          </div>
+        ) : (
+          filteredProducts.map((p) => (
+            <div
+              key={p.id}
+              className="bg-slate-900 border border-slate-800 rounded-2xl p-3 flex flex-col justify-between hover:border-slate-700 transition group"
+            >
+              <div>
+                <div className="w-full h-36 rounded-xl bg-slate-950 flex items-center justify-center overflow-hidden mb-2.5">
+                  {p.imageUrl ? (
+                    <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition" />
+                  ) : (
+                    <span className="text-3xl">🛒</span>
+                  )}
+                </div>
+                <span className="text-[10px] font-mono text-blue-400 block truncate">{p.subCategory}</span>
+                <h3 className="font-bold text-white text-xs sm:text-sm line-clamp-2 mt-0.5">{p.name}</h3>
+              </div>
+
+              <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-black text-emerald-400 font-mono">₹{p.price.toFixed(2)}</span>
+                  <div className="text-[10px]">
+                    {p.stock > 0 ? (
+                      <span className="text-emerald-400">In Stock</span>
+                    ) : (
+                      <span className="text-rose-400">Out of Stock</span>
+                    )}
+                  </div>
+                </div>
+
+                {p.stock > 0 ? (
+                  <button
+                    onClick={() => addToCart(p)}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold transition"
+                  >
+                    + Add
+                  </button>
+                ) : (
+                  <button disabled className="px-3 py-1.5 bg-slate-800 text-slate-500 rounded-lg text-xs cursor-not-allowed">
+                    Sold
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Floating Bottom Cart Bar (when cart has items) */}
+      {totalCartCount > 0 && (
+        <div className="fixed bottom-4 left-4 right-4 max-w-lg mx-auto z-40">
+          <button
+            onClick={() => setIsCartOpen(true)}
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white p-3.5 rounded-2xl shadow-xl flex items-center justify-between font-semibold text-xs transition"
+          >
+            <div className="flex items-center gap-2">
+              <span className="bg-blue-700 px-2.5 py-1 rounded-lg text-xs font-mono">{totalCartCount} items</span>
+              <span>View Cart</span>
+            </div>
+            <span className="text-sm font-mono font-black">₹{cartTotal.toFixed(2)} →</span>
           </button>
         </div>
       )}
 
-      {/* Product Catalog Grid */}
-      <main className="max-w-6xl mx-auto p-4 sm:p-8">
-        <h2 className="text-lg font-bold text-slate-800 mb-6">Available Items</h2>
-        {loading ? (
-          <div className="text-center py-16 text-slate-400 text-sm">Loading grocery items...</div>
-        ) : products.length === 0 ? (
-          <div className="text-center py-16 text-slate-400 text-sm">No items in the store right now. Check back soon!</div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {products.map((product) => {
-              const inCart = cart.find((i) => i.product.id === product.id);
-              return (
-                <div
-                  key={product.id}
-                  className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between"
-                >
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
-                      {product.category}
-                    </span>
-                    <h3 className="font-semibold text-slate-900 text-sm leading-tight line-clamp-2">
-                      {product.name}
-                    </h3>
-                    <p className="text-emerald-600 font-bold font-mono text-base mt-2">
-                      ₹{product.price.toFixed(2)}
-                    </p>
-                    <span className="text-xs text-slate-400 block mt-1">
-                      {product.stock > 0 ? `${product.stock} in stock` : "Out of Stock"}
-                    </span>
-                  </div>
-
-                  <div className="mt-4 pt-3 border-t border-slate-100">
-                    {product.stock === 0 ? (
-                      <button disabled className="w-full bg-slate-100 text-slate-400 text-xs py-2 rounded-lg cursor-not-allowed">
-                        Sold Out
-                      </button>
-                    ) : inCart ? (
-                      <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-2 py-1">
-                        <button
-                          onClick={() => updateQuantity(product.id, -1)}
-                          className="text-blue-600 hover:text-blue-800 font-bold px-2"
-                        >
-                          -
-                        </button>
-                        <span className="text-xs font-semibold text-blue-900">{inCart.quantity}</span>
-                        <button
-                          onClick={() => updateQuantity(product.id, 1)}
-                          className="text-blue-600 hover:text-blue-800 font-bold px-2"
-                        >
-                          +
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => addToCart(product)}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2 rounded-lg transition"
-                      >
-                        + Add to Cart
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </main>
-
-      {/* Cart Drawer */}
-      {cartOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col justify-between p-6">
+      {/* Cart & Checkout Drawer Modal */}
+      {isCartOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex justify-end">
+          <div className="w-full max-w-md bg-slate-900 border-l border-slate-800 h-full flex flex-col justify-between p-5 overflow-y-auto">
             <div>
-              <div className="flex justify-between items-center border-b pb-4 mb-4">
-                <h3 className="text-lg font-bold text-slate-900">Your Basket</h3>
+              <div className="flex justify-between items-center pb-4 border-b border-slate-800">
+                <h2 className="text-base font-bold text-white">Your Cart ({totalCartCount})</h2>
                 <button
-                  onClick={() => setCartOpen(false)}
-                  className="text-slate-400 hover:text-slate-600 text-lg"
+                  onClick={() => setIsCartOpen(false)}
+                  className="text-slate-400 hover:text-white text-sm"
                 >
                   ✕
                 </button>
               </div>
 
-              {cart.length === 0 ? (
-                <p className="text-center py-12 text-slate-400 text-sm">Your cart is empty.</p>
-              ) : (
-                <div className="max-h-[35vh] overflow-y-auto divide-y divide-slate-100 pr-1">
-                  {cart.map((item) => (
-                    <div key={item.product.id} className="py-3 flex justify-between items-center">
-                      <div>
-                        <h4 className="text-sm font-semibold text-slate-900">{item.product.name}</h4>
-                        <span className="text-xs text-slate-400">₹{item.product.price.toFixed(2)} each</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => updateQuantity(item.product.id, -1)}
-                          className="border w-6 h-6 rounded flex items-center justify-center text-xs"
-                        >
-                          -
-                        </button>
-                        <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
-                        <button
-                          onClick={() => updateQuantity(item.product.id, 1)}
-                          className="border w-6 h-6 rounded flex items-center justify-center text-xs"
-                        >
-                          +
-                        </button>
-                      </div>
+              {/* Items List */}
+              <div className="divide-y divide-slate-800/80 my-3">
+                {cart.map((item) => (
+                  <div key={item.id} className="py-2.5 flex justify-between items-center text-xs">
+                    <div className="max-w-[180px]">
+                      <h4 className="font-semibold text-white truncate">{item.name}</h4>
+                      <span className="text-slate-400 font-mono">₹{item.price.toFixed(2)}</span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
 
-            {/* Checkout Form */}
-            {cart.length > 0 && (
-              <form onSubmit={handleCheckout} className="space-y-4 border-t pt-4">
-                <div className="flex justify-between text-base font-bold text-slate-900">
-                  <span>Total Amount</span>
-                  <span className="font-mono text-emerald-600">₹{total.toFixed(2)}</span>
-                </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => updateQuantity(item.id, -1)}
+                        className="w-6 h-6 rounded-md bg-slate-800 text-white flex items-center justify-center font-bold"
+                      >
+                        -
+                      </button>
+                      <span className="font-mono text-xs text-white">{item.quantity}</span>
+                      <button
+                        onClick={() => updateQuantity(item.id, 1)}
+                        className="w-6 h-6 rounded-md bg-slate-800 text-white flex items-center justify-center font-bold"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-between items-center py-3 border-t border-slate-800 font-mono">
+                <span className="text-xs text-slate-400">Total Bill</span>
+                <span className="text-base font-bold text-emerald-400">₹{cartTotal.toFixed(2)}</span>
+              </div>
+
+              {/* Checkout Customer Details */}
+              <form onSubmit={handleCheckout} className="space-y-3 mt-4">
+                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Delivery Details</h3>
+
+                <input
+                  type="text"
+                  placeholder="Full Name"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs outline-none"
+                />
+
+                <input
+                  type="tel"
+                  placeholder="WhatsApp Mobile Number"
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs outline-none"
+                />
+
+                <textarea
+                  placeholder="Door No, Street, Landmark Address"
+                  required
+                  rows={2}
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs outline-none"
+                />
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                    Delivery Address
-                  </label>
-                  <textarea
-                    required
-                    placeholder="House/Street, Landmark, City..."
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    rows={2}
-                    className="w-full text-xs border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="e.g. 9876543210"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full text-xs border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <label className="block text-[11px] text-slate-400 mb-1">Payment Method</label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs outline-none"
+                  >
+                    <option value="COD">Cash on Delivery (COD)</option>
+                    <option value="UPI">UPI on Delivery</option>
+                  </select>
                 </div>
 
                 <button
                   type="submit"
-                  disabled={orderSubmitting}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition text-sm disabled:opacity-50"
+                  disabled={loading}
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition shadow mt-3"
                 >
-                  {orderSubmitting ? "Placing Order..." : "Confirm Delivery Order (Cash on Delivery)"}
+                  {loading ? "Placing Order..." : `Place Order (₹${cartTotal.toFixed(2)})`}
                 </button>
               </form>
-            )}
+            </div>
           </div>
         </div>
       )}
     </div>
   );
-      }
+}
