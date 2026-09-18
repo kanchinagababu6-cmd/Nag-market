@@ -8,7 +8,7 @@ export default async function HomePage() {
     {
       title: "Online Storefront",
       role: "Customers",
-      href: "/shop",
+      href: "/shop" as const,
       badge: "Shop Now",
       badgeColor: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
       icon: "🛍️",
@@ -18,7 +18,7 @@ export default async function HomePage() {
     {
       title: "POS Billing Terminal",
       role: "Sales Boy",
-      href: "/pos",
+      href: "/pos" as const,
       badge: "Quick Scan",
       badgeColor: "bg-blue-500/10 text-blue-400 border-blue-500/30",
       icon: "🛒",
@@ -28,7 +28,7 @@ export default async function HomePage() {
     {
       title: "Delivery Agent Portal",
       role: "Delivery Driver",
-      href: "/delivery",
+      href: "/delivery" as const,
       badge: "Orders & Route",
       badgeColor: "bg-amber-500/10 text-amber-400 border-amber-500/30",
       icon: "🛵",
@@ -38,14 +38,14 @@ export default async function HomePage() {
     {
       title: "Staff & Management",
       role: "Owner / Manager",
-      href: "/admin/staff",
+      href: "/admin/staff" as const,
       badge: "Administration",
       badgeColor: "bg-purple-500/10 text-purple-400 border-purple-500/30",
       icon: "👑",
       accent: "hover:border-purple-500/50 hover:shadow-purple-500/10",
       description: "Add team members, assign POS/Delivery roles, and inspect inventory.",
     },
-  ];
+  ] as const;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-blue-500 selection:text-white">
@@ -109,7 +109,7 @@ export default async function HomePage() {
           {portals.map((p) => (
             <Link
               key={p.title}
-              href={p.href}
+              href={p.href as any}
               className={`group bg-slate-900/80 border border-slate-800 rounded-2xl p-6 transition-all duration-200 hover:-translate-y-1 shadow-lg ${p.accent} flex flex-col justify-between`}
             >
               <div>
