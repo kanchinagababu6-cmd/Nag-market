@@ -1,0 +1,226 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  CASHIER
+  DELIVERY
+  CUSTOMER
+}
+
+enum OrderStatus {
+  NEW
+  CONFIRMED
+  PICKING
+  PACKED
+  ASSIGNED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  REFUND_REQUESTED
+  REFUNDED
+  RETURNED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  COD_PENDING
+}
+
+enum PaymentMethod {
+  COD
+  UPI
+  CARD
+  NET_BANKING
+  CASH
+  MULTI
+}
+
+enum InventoryTxnType {
+  IN
+  OUT
+  ADJUSTMENT
+  DAMAGE
+  EXPIRY
+  TRANSFER
+}
+
+model User {
+  id            String      @id @default(cuid())
+  firebaseUid   String?     @unique
+  email         String      @unique
+  name          String
+  phone         String?
+  role          UserRole    @default(CUSTOMER)
+  active        Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  orders        Order[]     @relation("CustomerOrders")
+  statusChanges OrderStatusHistory[]
+  auditLogs     AuditLog[]
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  slug      String    @unique
+  active    Boolean   @default(true)
+  products  Product[]
+  createdAt DateTime  @default(now())
+}
+
+model Brand {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
+}
+
+model Product {
+  id              String                 @id @default(cuid())
+  sku             String                 @unique
+  barcode         String?                @unique
+  name            String
+  slug            String                 @unique
+  description     String?
+  unit            String                 @default("pcs")
+  mrp             Decimal                @db.Decimal(12,2)
+  sellingPrice    Decimal                @db.Decimal(12,2)
+  purchasePrice   Decimal                @db.Decimal(12,2)
+  gstRate         Decimal                @db.Decimal(5,2) @default(0)
+  hsnCode         String?
+  active          Boolean                @default(true)
+  onlineAvailable Boolean                @default(true)
+  featured        Boolean                @default(false)
+  imageUrl        String?
+  categoryId     String
+  brandId        String?
+  category        Category               @relation(fields: [categoryId], references: [id])
+  brand           Brand?                 @relation(fields: [brandId], references: [id])
+  inventory       Inventory?
+  orderItems      OrderItem[]
+  inventoryTxns   InventoryTransaction[]
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  @@index([categoryId])
+  @@index([name])
+}
+
+model Inventory {
+  id           String   @id @default(cuid())
+  productId    String   @unique
+  quantity     Int      @default(0)
+  reorderLevel Int      @default(5)
+  updatedAt    DateTime @updatedAt
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model InventoryTransaction {
+  id        String            @id @default(cuid())
+  productId String
+  type      InventoryTxnType
+  quantity  Int
+  reference String?
+  note      String?
+  createdAt DateTime          @default(now())
+  product   Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  @@index([productId, createdAt])
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  userId     String
+  label      String
+  line1      String
+  line2      String?
+  city       String
+  state      String
+  postalCode String
+  phone      String?
+  isDefault  Boolean  @default(false)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders     Order[]
+  createdAt  DateTime @default(now())
+}
+
+model Order {
+  id              String               @id @default(cuid())
+  orderNumber     String               @unique
+  userId          String
+  addressId       String?
+  status          OrderStatus          @default(NEW)
+  subtotal        Decimal              @db.Decimal(12,2)
+  discount        Decimal              @db.Decimal(12,2) @default(0)
+  deliveryCharge  Decimal              @db.Decimal(12,2) @default(0)
+  tax             Decimal              @db.Decimal(12,2) @default(0)
+  total           Decimal              @db.Decimal(12,2)
+  paymentMethod   PaymentMethod        @default(COD)
+  paymentStatus   PaymentStatus        @default(COD_PENDING)
+  deliveryDate    DateTime?
+  deliverySlot    String?
+  user            User                 @relation("CustomerOrders", fields: [userId], references: [id])
+  address         Address?             @relation(fields: [addressId], references: [id])
+  items           OrderItem[]
+  payments        Payment[]
+  statusHistory   OrderStatusHistory[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+model OrderItem {
+  id         String  @id @default(cuid())
+  orderId    String
+  productId  String
+  quantity   Int
+  unitPrice  Decimal @db.Decimal(12,2)
+  lineTotal  Decimal @db.Decimal(12,2)
+  order      Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product    Product @relation(fields: [productId], references: [id])
+  @@index([orderId])
+}
+
+model OrderStatusHistory {
+  id         String      @id @default(cuid())
+  orderId    String
+  actorId    String?
+  previous   OrderStatus?
+  next       OrderStatus
+  note       String?
+  createdAt  DateTime    @default(now())
+  order      Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor      User?       @relation(fields: [actorId], references: [id])
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  orderId     String
+  method      PaymentMethod
+  amount      Decimal       @db.Decimal(12,2)
+  status      PaymentStatus @default(PENDING)
+  provider    String?
+  reference   String?
+  createdAt   DateTime      @default(now())
+  order       Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+}
