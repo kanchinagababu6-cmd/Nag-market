@@ -21,39 +21,34 @@ async function main() {
   const grocery = await prisma.category.findUniqueOrThrow({ where: { slug: "groceries" } });
 
   const products = [
-    { sku: "RICE001", barcode: "890000000001", name: "Premium Rice 5kg", slug: "premium-rice-5kg", mrp: 420, sellingPrice: 395, purchasePrice: 350, gstRate: 5, stock: 50 },
-    { sku: "OIL001", barcode: "890000000002", name: "Sunflower Oil 1L", slug: "sunflower-oil-1l", mrp: 160, sellingPrice: 145, purchasePrice: 125, gstRate: 5, stock: 40 },
-    { sku: "DAL001", barcode: "890000000003", name: "Toor Dal 1kg", slug: "toor-dal-1kg", mrp: 180, sellingPrice: 165, purchasePrice: 140, gstRate: 5, stock: 35 }
+    { barcode: "890000000001", name: "Premium Rice 5kg", slug: "premium-rice-5kg", price: 395, costPrice: 350, stock: 50 },
+    { barcode: "890000000002", name: "Sunflower Oil 1L", slug: "sunflower-oil-1l", price: 145, costPrice: 125, stock: 40 },
+    { barcode: "890000000003", name: "Toor Dal 1kg", slug: "toor-dal-1kg", price: 165, costPrice: 140, stock: 35 }
   ];
 
   for (const p of products) {
-    const product = await prisma.product.upsert({
-      where: { sku: p.sku },
-      update: {},
+    await prisma.product.upsert({
+      where: { slug: p.slug },
+      update: {
+        stock: p.stock,
+        price: p.price,
+        costPrice: p.costPrice
+      },
       create: {
-        sku: p.sku,
         barcode: p.barcode,
         name: p.name,
         slug: p.slug,
-        mrp: p.mrp,
-        sellingPrice: p.sellingPrice,
-        purchasePrice: p.purchasePrice,
-        gstRate: p.gstRate,
+        price: p.price,
+        costPrice: p.costPrice,
+        stock: p.stock,
         categoryId: grocery.id
       }
-    });
-
-    await prisma.inventory.upsert({
-      where: { productId: product.id },
-      update: {},
-      create: { productId: product.id, quantity: p.stock }
     });
   }
 
   const demoUsers = [
     ["admin@example.com", "Demo Admin", UserRole.ADMIN],
-    ["cashier@example.com", "Demo Cashier", UserRole.CASHIER],
-    ["delivery@example.com", "Demo Delivery", UserRole.DELIVERY],
+    ["staff@example.com", "Demo Staff", UserRole.STAFF],
     ["customer@example.com", "Demo Customer", UserRole.CUSTOMER]
   ] as const;
 
