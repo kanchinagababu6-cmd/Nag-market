@@ -1,86 +1,55 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { z } from "zod";
+import { PrismaClient } from "@prisma/client";
 
-const schema = z.object({
-  userId: z.string().min(1),
-  paymentMethod: z.enum(["COD", "UPI", "CARD", "NET_BANKING", "CASH", "MULTI"]).default("COD"),
-  items: z.array(z.object({
-    productId: z.string().min(1),
-    quantity: z.number().int().positive()
-  })).min(1)
-});
+const prisma = new PrismaClient();
 
-export async function POST(request: Request) {
-  const parsed = schema.safeParse(await request.json());
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-
-  const { userId, paymentMethod, items } = parsed.data;
-
+export async function POST(req: Request) {
   try {
-    const result = await prisma.$transaction(async tx => {
-      const products = await tx.product.findMany({
-        where: { id: { in: items.map(i => i.productId) }, active: true }
-      });
+    const { items, totalAmount, deliveryAddress, phone } = await req.json();
 
-      if (products.length !== items.length) throw new Error("One or more products are unavailable.");
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
+    }
 
-      let subtotal = 0;
-      const lines: { productId: string; quantity: number; price: number; subtotal: number }[] = [];
+    if (!deliveryAddress || !phone) {
+      return NextResponse.json({ error: "Address and phone are required" }, { status: 400 });
+    }
 
-      for (const item of items) {
-        const p = products.find(x => x.id === item.productId)!;
-        const stock = p.stock ?? 0;
-        if (stock < item.quantity) throw new Error(`Insufficient stock for ${p.name}.`);
-        const unitPrice = Number(p.price);
-        const lineTotal = unitPrice * item.quantity;
-        subtotal += lineTotal;
-        lines.push({ productId: p.id, quantity: item.quantity, price: unitPrice, subtotal: lineTotal });
-      }
-
-      const tax = Number((subtotal * 0.05).toFixed(2));
-      const total = Number((subtotal + tax).toFixed(2));
-      const orderNumber = `ORD-${Date.now()}`;
-
-      const order = await tx.order.create({
+    const order = await prisma.$transaction(async (tx) => {
+      // 1. Create order record
+      const newOrder = await tx.order.create({
         data: {
-          orderNumber,
-          userId,
-          subtotal,
-          tax,
-          total,
-          paymentMethod,
-          paymentStatus: "PENDING",
-          items: { create: lines }
-        }
+          type: "ONLINE",
+          status: "PAID",
+          totalAmount: parseFloat(totalAmount),
+          deliveryAddress: `${deliveryAddress} (Tel: ${phone})`,
+          items: {
+            create: items.map((i: any) => ({
+              productId: i.productId,
+              quantity: i.quantity,
+              price: i.price,
+            })),
+          },
+        },
       });
 
-      for (const line of lines) {
-        const updated = await tx.product.updateMany({
-          where: { id: line.productId, stock: { gte: line.quantity } },
-          data: { stock: { decrement: line.quantity } }
-        });
-        if (updated.count !== 1) throw new Error("Stock changed during checkout. Please retry.");
-        await tx.inventoryTxn.create({
+      // 2. Decrement inventory stock
+      for (const item of items) {
+        await tx.product.update({
+          where: { id: item.productId },
           data: {
-            productId: line.productId,
-            type: "OUT",
-            quantity: line.quantity,
-            reference: order.id,
-            note: "Online order"
-          }
+            stock: {
+              decrement: item.quantity,
+            },
+          },
         });
       }
 
-      await tx.orderStatusHistory.create({
-        data: { orderId: order.id, status: "NEW", note: "Order created" }
-      });
-
-      return order;
+      return newOrder;
     });
 
-    return NextResponse.json(result, { status: 201 });
-  } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Order failed" }, { status: 409 });
+    return NextResponse.json({ success: true, orderId: order.id }, { status: 201 });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || "Failed to process order" }, { status: 500 });
   }
 }
