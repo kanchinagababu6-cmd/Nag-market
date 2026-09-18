@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
-// Complete grocery hierarchy
 const CATEGORIES: Record<string, string[]> = {
   "Staples & Grains": [
     "Atta, Flours & Sooji",
@@ -60,49 +59,24 @@ const CATEGORIES: Record<string, string[]> = {
   ],
 };
 
-interface Product {
-  id: string;
-  name: string;
-  barcode: string;
-  category: string;
-  subCategory: string;
-  price: number;
-  stock: number;
-  imageUrl?: string;
-}
-
 export default function AdminProductsPage() {
-  const [selectedCategory, setSelectedCategory] = useState<string>("Staples & Grains");
-  const [selectedSubCategory, setSelectedSubCategory] = useState<string>(CATEGORIES["Staples & Grains"][0]);
-  const [imageUrl, setImageUrl] = useState<string>("");
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-
-  // Switch sub-category list when main category changes
-  const handleCategoryChange = (category: string) => {
-    setSelectedCategory(category);
-    setSelectedSubCategory(CATEGORIES[category][0]);
-  };
-
-  // Convert uploaded device picture to preview data
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  const [name, setName] = useState("");
+  const [barcode, setBarcode] = useState("");
+  const [price, setPrice] = useState("");
+  const [stock, setStock] = useState("");
+  const [category, setCategory] = useState("Staples & Grains");
+  const [subCategory, setSubCategory] = useState(CATEGORIES["Staples & Grains"][0]);
+  const [imageUrl, setImageUrl] = useState("");
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const fetchProducts = async () => {
     try {
       const res = await fetch("/api/products");
       const data = await res.json();
       if (Array.isArray(data)) setProducts(data);
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -110,67 +84,108 @@ export default function AdminProductsPage() {
     fetchProducts();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+  const handleCategorySelect = (val: string) => {
+    setCategory(val);
+    setSubCategory(CATEGORIES[val][0]);
+  };
 
-    const form = e.currentTarget;
-    const formData = new FormData(form);
+  // Compress picture to < 200KB thumbnail before saving
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    const payload = {
-      name: formData.get("name"),
-      barcode: formData.get("barcode"),
-      price: parseFloat(formData.get("price") as string),
-      stock: parseInt(formData.get("stock") as string, 10),
-      category: selectedCategory,
-      subCategory: selectedSubCategory,
-      imageUrl: imageUrl,
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const maxDim = 400;
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height && width > maxDim) {
+        height = Math.round((height * maxDim) / width);
+        width = maxDim;
+      } else if (height > maxDim) {
+        width = Math.round((width * maxDim) / height);
+        height = maxDim;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx?.drawImage(img, 0, 0, width, height);
+      const compressed = canvas.toDataURL("image/jpeg", 0.7);
+      setImageUrl(compressed);
     };
+  };
 
+  const handleSaveProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !barcode) {
+      alert("Please fill in Product Name and Barcode");
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await fetch("/api/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          name,
+          barcode,
+          price: parseFloat(price) || 0,
+          stock: parseInt(stock, 10) || 0,
+          category,
+          subCategory,
+          imageUrl,
+        }),
       });
 
-      if (res.ok) {
-        form.reset();
+      const result = await res.json();
+
+      if (!res.ok || result.error) {
+        alert("Error saving: " + (result.error || "Unknown server issue"));
+      } else {
+        // Reset form inputs
+        setName("");
+        setBarcode("");
+        setPrice("");
+        setStock("");
         setImageUrl("");
         fetchProducts();
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      alert("Network/Request Error: " + err.message);
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
     <div className="w-full max-w-6xl mx-auto p-4 space-y-6">
-      {/* Top Header */}
       <div className="flex justify-between items-center bg-slate-900 border border-slate-800 p-4 rounded-2xl">
         <div>
           <h1 className="text-xl font-bold text-white">📦 Master Product & Stock Manager</h1>
-          <p className="text-xs text-slate-400">Add barcodes, assign sub-categories, and upload product images</p>
+          <p className="text-xs text-slate-400">Add barcodes, assign sub-categories, and sync stock</p>
         </div>
         <Link
           href="/"
           className="text-xs px-3 py-1.5 bg-slate-800 text-slate-300 hover:text-white rounded-xl border border-slate-700"
         >
-          ← Dashboard
+          ← Home
         </Link>
       </div>
 
-      {/* Product Form */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
         <h2 className="text-sm font-bold text-white mb-4">Add or Restock Product</h2>
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <form onSubmit={handleSaveProduct} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="block text-[11px] font-semibold text-slate-400 mb-1">Product Name *</label>
             <input
               type="text"
-              name="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Fortune Sunflower Oil 1L"
               required
               className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs outline-none focus:border-blue-500"
@@ -181,7 +196,8 @@ export default function AdminProductsPage() {
             <label className="block text-[11px] font-semibold text-slate-400 mb-1">Barcode / SKU *</label>
             <input
               type="text"
-              name="barcode"
+              value={barcode}
+              onChange={(e) => setBarcode(e.target.value)}
               placeholder="Scan or type barcode"
               required
               className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs font-mono outline-none focus:border-blue-500"
@@ -191,14 +207,12 @@ export default function AdminProductsPage() {
           <div>
             <label className="block text-[11px] font-semibold text-slate-400 mb-1">Main Category *</label>
             <select
-              value={selectedCategory}
-              onChange={(e) => handleCategoryChange(e.target.value)}
+              value={category}
+              onChange={(e) => handleCategorySelect(e.target.value)}
               className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs outline-none focus:border-blue-500"
             >
               {Object.keys(CATEGORIES).map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
+                <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
           </div>
@@ -206,14 +220,12 @@ export default function AdminProductsPage() {
           <div>
             <label className="block text-[11px] font-semibold text-slate-400 mb-1">Sub-Category *</label>
             <select
-              value={selectedSubCategory}
-              onChange={(e) => setSelectedSubCategory(e.target.value)}
+              value={subCategory}
+              onChange={(e) => setSubCategory(e.target.value)}
               className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs outline-none focus:border-blue-500"
             >
-              {CATEGORIES[selectedCategory].map((sub) => (
-                <option key={sub} value={sub}>
-                  {sub}
-                </option>
+              {CATEGORIES[category].map((sub) => (
+                <option key={sub} value={sub}>{sub}</option>
               ))}
             </select>
           </div>
@@ -223,7 +235,8 @@ export default function AdminProductsPage() {
             <input
               type="number"
               step="0.01"
-              name="price"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
               placeholder="0.00"
               required
               className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs font-mono outline-none focus:border-blue-500"
@@ -234,38 +247,36 @@ export default function AdminProductsPage() {
             <label className="block text-[11px] font-semibold text-slate-400 mb-1">Stock Units *</label>
             <input
               type="number"
-              name="stock"
+              value={stock}
+              onChange={(e) => setStock(e.target.value)}
               placeholder="0"
               required
               className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs font-mono outline-none focus:border-blue-500"
             />
           </div>
 
-          {/* Image Upload / Photo Snapper */}
-          <div className="sm:col-span-2 lg:col-span-2">
+          <div className="sm:col-span-2">
             <label className="block text-[11px] font-semibold text-slate-400 mb-1">Product Photo</label>
             <div className="flex items-center gap-3">
               <input
                 type="file"
                 accept="image/*"
-                onChange={handleFileChange}
-                className="text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700"
+                onChange={handlePhotoUpload}
+                className="text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-slate-200"
               />
-              <span className="text-[10px] text-slate-500">or paste URL:</span>
               <input
                 type="url"
-                placeholder="https://..."
-                value={imageUrl}
+                placeholder="Or paste image URL"
+                value={imageUrl.startsWith("data:") ? "" : imageUrl}
                 onChange={(e) => setImageUrl(e.target.value)}
                 className="flex-1 px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs outline-none"
               />
             </div>
           </div>
 
-          {/* Preview Thumbnail */}
-          <div className="flex items-center justify-center border border-slate-800 rounded-xl bg-slate-950 h-20 w-20 overflow-hidden">
+          <div className="flex items-center justify-center border border-slate-800 rounded-xl bg-slate-950 h-16 w-16 overflow-hidden">
             {imageUrl ? (
-              <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
+              <img src={imageUrl} alt="Thumbnail" className="w-full h-full object-cover" />
             ) : (
               <span className="text-[10px] text-slate-600">No Image</span>
             )}
@@ -274,10 +285,10 @@ export default function AdminProductsPage() {
           <div className="sm:col-span-2 lg:col-span-3 flex justify-end">
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={loading}
               className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold text-xs rounded-xl transition shadow"
             >
-              {isSubmitting ? "Saving..." : "Save Product to Catalog"}
+              {loading ? "Saving Product..." : "Save Product to Catalog"}
             </button>
           </div>
         </form>
