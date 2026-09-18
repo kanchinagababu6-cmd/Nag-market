@@ -1,12 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Script from "next/script";
-import { getSession } from "@/lib/auth";
+import { getSession, clearSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Nag Supermarket | Operating System",
   description: "Retail Counter POS & Online Grocery Delivery",
 };
+
+async function handleLogout() {
+  "use server";
+  await clearSession();
+  redirect("/login");
+}
 
 export default async function RootLayout({
   children,
@@ -18,7 +25,6 @@ export default async function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
-        {/* Force-load Tailwind CSS runtime so styles render immediately */}
         <Script
           src="https://cdn.tailwindcss.com"
           strategy="beforeInteractive"
@@ -37,12 +43,12 @@ export default async function RootLayout({
         `}} />
       </head>
       <body className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between">
-        {/* Global Navigation Bar */}
+        {/* Navigation Bar */}
         <header className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950/90 backdrop-blur-md">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-xl shadow-lg shadow-blue-500/10">
+              <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-xl">
                 🏪
               </div>
               <div>
@@ -84,19 +90,21 @@ export default async function RootLayout({
               </Link>
             </nav>
 
-            {/* User Session */}
-            <div className="flex items-center gap-3">
+            {/* User Session & Logout */}
+            <div className="flex items-center gap-2">
               {session ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs bg-slate-800 text-slate-300 px-3 py-1.5 rounded-full border border-slate-700">
+                  <span className="text-xs bg-slate-800 text-slate-200 px-3 py-1.5 rounded-full border border-slate-700">
                     {session.name}
                   </span>
-                  <Link
-                    href="/login"
-                    className="text-xs text-rose-400 hover:text-rose-300 font-semibold"
-                  >
-                    Switch
-                  </Link>
+                  <form action={handleLogout}>
+                    <button
+                      type="submit"
+                      className="text-xs bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 px-3 py-1.5 rounded-xl font-medium transition cursor-pointer"
+                    >
+                      Log Out
+                    </button>
+                  </form>
                 </div>
               ) : (
                 <Link
@@ -110,10 +118,10 @@ export default async function RootLayout({
           </div>
         </header>
 
-        {/* Content Page */}
+        {/* Content Area */}
         <div className="flex-1 flex flex-col">{children}</div>
 
-        {/* Global Footer */}
+        {/* Footer */}
         <footer className="border-t border-slate-800 bg-slate-950 py-6 text-center text-xs text-slate-500">
           Nag Supermarket OS • Next.js 15 & Neon Cloud Database
         </footer>
