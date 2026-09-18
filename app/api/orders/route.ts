@@ -20,23 +20,22 @@ export async function POST(request: Request) {
   try {
     const result = await prisma.$transaction(async tx => {
       const products = await tx.product.findMany({
-        where: { id: { in: items.map(i => i.productId) }, active: true },
-        include: { inventory: true }
+        where: { id: { in: items.map(i => i.productId) }, active: true }
       });
 
       if (products.length !== items.length) throw new Error("One or more products are unavailable.");
 
       let subtotal = 0;
-      const lines: { productId: string; quantity: number; unitPrice: number; lineTotal: number }[] = [];
+      const lines: { productId: string; quantity: number; price: number; subtotal: number }[] = [];
 
       for (const item of items) {
         const p = products.find(x => x.id === item.productId)!;
-        const stock = p.inventory?.quantity ?? 0;
+        const stock = p.stock ?? 0;
         if (stock < item.quantity) throw new Error(`Insufficient stock for ${p.name}.`);
-        const unitPrice = Number(p.sellingPrice);
+        const unitPrice = Number(p.price);
         const lineTotal = unitPrice * item.quantity;
         subtotal += lineTotal;
-        lines.push({ productId: p.id, quantity: item.quantity, unitPrice, lineTotal });
+        lines.push({ productId: p.id, quantity: item.quantity, price: unitPrice, subtotal: lineTotal });
       }
 
       const tax = Number((subtotal * 0.05).toFixed(2));
@@ -51,18 +50,18 @@ export async function POST(request: Request) {
           tax,
           total,
           paymentMethod,
-          paymentStatus: paymentMethod === "COD" ? "COD_PENDING" : "PENDING",
+          paymentStatus: "PENDING",
           items: { create: lines }
         }
       });
 
       for (const line of lines) {
-        const updated = await tx.inventory.updateMany({
-          where: { productId: line.productId, quantity: { gte: line.quantity } },
-          data: { quantity: { decrement: line.quantity } }
+        const updated = await tx.product.updateMany({
+          where: { id: line.productId, stock: { gte: line.quantity } },
+          data: { stock: { decrement: line.quantity } }
         });
         if (updated.count !== 1) throw new Error("Stock changed during checkout. Please retry.");
-        await tx.inventoryTransaction.create({
+        await tx.inventoryTxn.create({
           data: {
             productId: line.productId,
             type: "OUT",
@@ -74,7 +73,7 @@ export async function POST(request: Request) {
       }
 
       await tx.orderStatusHistory.create({
-        data: { orderId: order.id, next: "NEW", note: "Order created" }
+        data: { orderId: order.id, status: "NEW", note: "Order created" }
       });
 
       return order;
