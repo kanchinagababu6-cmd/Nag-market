@@ -69,6 +69,7 @@ export default function AdminProductsPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [matchFound, setMatchFound] = useState(false);
 
   const fetchProducts = async () => {
     try {
@@ -84,12 +85,38 @@ export default function AdminProductsPage() {
     fetchProducts();
   }, []);
 
+  // Auto-detect existing barcode and fill Name, Category, Sub-category, and Photo
+  const handleBarcodeChange = (val: string) => {
+    setBarcode(val);
+    const trimmed = val.trim().toLowerCase();
+    if (!trimmed) {
+      setMatchFound(false);
+      return;
+    }
+
+    const matched = products.find(
+      (p) => p.barcode.toString().trim().toLowerCase() === trimmed
+    );
+
+    if (matched) {
+      setName(matched.name || "");
+      if (matched.category && CATEGORIES[matched.category]) {
+        setCategory(matched.category);
+        setSubCategory(matched.subCategory || CATEGORIES[matched.category][0]);
+      }
+      setImageUrl(matched.imageUrl || "");
+      setMatchFound(true);
+      // Price and stock are intentionally NOT overwritten so you can enter new values
+    } else {
+      setMatchFound(false);
+    }
+  };
+
   const handleCategorySelect = (val: string) => {
     setCategory(val);
     setSubCategory(CATEGORIES[val][0]);
   };
 
-  // Compress picture to < 200KB thumbnail before saving
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -147,12 +174,12 @@ export default function AdminProductsPage() {
       if (!res.ok || result.error) {
         alert("Error saving: " + (result.error || "Unknown server issue"));
       } else {
-        // Reset form inputs
         setName("");
         setBarcode("");
         setPrice("");
         setStock("");
         setImageUrl("");
+        setMatchFound(false);
         fetchProducts();
       }
     } catch (err: any) {
@@ -167,7 +194,7 @@ export default function AdminProductsPage() {
       <div className="flex justify-between items-center bg-slate-900 border border-slate-800 p-4 rounded-2xl">
         <div>
           <h1 className="text-xl font-bold text-white">📦 Master Product & Stock Manager</h1>
-          <p className="text-xs text-slate-400">Add barcodes, assign sub-categories, and sync stock</p>
+          <p className="text-xs text-slate-400">Scan existing barcode to auto-populate product info</p>
         </div>
         <Link
           href="/"
@@ -178,8 +205,29 @@ export default function AdminProductsPage() {
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-white mb-4">Add or Restock Product</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-sm font-bold text-white">Add or Restock Product</h2>
+          {matchFound && (
+            <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-lg">
+              ✓ Existing Product Detected & Auto-Filled
+            </span>
+          )}
+        </div>
+
         <form onSubmit={handleSaveProduct} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-400 mb-1">Barcode / SKU *</label>
+            <input
+              type="text"
+              value={barcode}
+              onChange={(e) => handleBarcodeChange(e.target.value)}
+              placeholder="Scan or type barcode"
+              required
+              autoFocus
+              className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs font-mono outline-none focus:border-blue-500"
+            />
+          </div>
+
           <div>
             <label className="block text-[11px] font-semibold text-slate-400 mb-1">Product Name *</label>
             <input
@@ -189,18 +237,6 @@ export default function AdminProductsPage() {
               placeholder="e.g. Fortune Sunflower Oil 1L"
               required
               className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs outline-none focus:border-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-400 mb-1">Barcode / SKU *</label>
-            <input
-              type="text"
-              value={barcode}
-              onChange={(e) => setBarcode(e.target.value)}
-              placeholder="Scan or type barcode"
-              required
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs font-mono outline-none focus:border-blue-500"
             />
           </div>
 
@@ -231,7 +267,7 @@ export default function AdminProductsPage() {
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-slate-400 mb-1">Price (₹) *</label>
+            <label className="block text-[11px] font-semibold text-slate-400 mb-1">New / Updated Price (₹) *</label>
             <input
               type="number"
               step="0.01"
@@ -244,7 +280,7 @@ export default function AdminProductsPage() {
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-slate-400 mb-1">Stock Units *</label>
+            <label className="block text-[11px] font-semibold text-slate-400 mb-1">Stock Units to Restock *</label>
             <input
               type="number"
               value={stock}
@@ -266,7 +302,7 @@ export default function AdminProductsPage() {
               />
               <input
                 type="url"
-                placeholder="Or paste image URL"
+                placeholder="Or image URL"
                 value={imageUrl.startsWith("data:") ? "" : imageUrl}
                 onChange={(e) => setImageUrl(e.target.value)}
                 className="flex-1 px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs outline-none"
