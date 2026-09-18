@@ -1,42 +1,43 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
-const SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "nag-supermarket-secret-key-prod-998877"
-);
-
-export type RoleType = "OWNER" | "MANAGER" | "SALES_BOY" | "DELIVERY_AGENT" | "CUSTOMER";
+const SECRET_KEY = process.env.JWT_SECRET || "supermarket-secret-jwt-key-2026";
+const KEY = new TextEncoder().encode(SECRET_KEY);
 
 export type UserSession = {
   id: string;
   email: string;
   name: string;
-  role: RoleType;
+  role: "OWNER" | "MANAGER" | "SALES_BOY" | "DELIVERY_AGENT" | "CUSTOMER";
 };
 
-export async function createSession(user: UserSession) {
-  const token = await new SignJWT(user)
+export async function createSession(payload: UserSession) {
+  const jwt = await new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
     .setExpirationTime("7d")
-    .sign(SECRET);
+    .sign(KEY);
 
   const cookieStore = await cookies();
-  cookieStore.set("session", token, {
+  cookieStore.set("session", jwt, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7, // 7 days
+    maxAge: 60 * 60 * 24 * 7,
   });
+
+  return jwt;
 }
 
 export async function getSession(): Promise<UserSession | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get("session")?.value;
+
   if (!token) return null;
 
   try {
-    const { payload } = await jwtVerify(SECRET, token);
+    const { payload } = await jwtVerify(token, KEY);
     return payload as unknown as UserSession;
   } catch {
     return null;
