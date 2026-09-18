@@ -1,24 +1,84 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
 enum Role {
-  ADMIN
+  OWNER
+  MANAGER
+  SALES_BOY
+  DELIVERY_AGENT
   CUSTOMER
-  CASHIER
+}
+
+enum OrderType {
+  POS
+  ONLINE
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PREPARING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
 }
 
 model User {
   id        String   @id @default(cuid())
+  name      String
   email     String   @unique
-  name      String?
+  password  String   // Hashed credentials or Firebase UID mapping
   role      Role     @default(CUSTOMER)
+  phone     String?
+  orders    Order[]  @relation("CustomerOrders")
+  deliveries Order[] @relation("DeliveryOrders")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Product {
+  id          String      @id @default(cuid())
+  name        String
+  barcode     String      @unique
+  price       Float
+  stock       Int         @default(0)
+  category    String      @default("General")
+  imageUrl    String?
+  orderItems  OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Order {
+  id              String         @id @default(cuid())
+  type            OrderType      @default(ONLINE)
+  status          OrderStatus    @default(PENDING)
+  totalAmount     Float
+  
+  customerId      String?
+  customer        User?          @relation("CustomerOrders", fields: [customerId], references: [id])
+  
+  deliveryAgentId String?
+  deliveryAgent   User?          @relation("DeliveryOrders", fields: [deliveryAgentId], references: [id])
+  
+  deliveryAddress String?
+  items           OrderItem[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model OrderItem {
   id        String   @id @default(cuid())
-  name      String
-  barcode   String   @unique
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int
   price     Float
-  stock     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
