@@ -15,70 +15,26 @@ enum Role {
   CUSTOMER
 }
 
-enum OrderType {
-  POS
-  ONLINE
-}
-
-enum OrderStatus {
-  PENDING
-  PAID
-  PREPARING
-  OUT_FOR_DELIVERY
-  DELIVERED
-  CANCELLED
-}
-
 model User {
-  id              String      @id @default(cuid())
-  name            String
-  email           String      @unique
-  password        String
-  role            Role        @default(CUSTOMER)
-  phone           String?
-  customerOrders  Order[]     @relation("CustomerOrders")
-  assignedOrders  Order[]     @relation("DeliveryOrders")
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id        String   @id @default(uuid())
+  email     String?  @unique
+  phone     String?  @unique
+  password  String?
+  name      String
+  role      Role     @default(CUSTOMER)
+  otp       String?
+  otpExpiry DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Product {
-  id          String      @id @default(cuid())
-  name        String
-  barcode     String      @unique
-  price       Float
-  stock       Int         @default(0)
-  category    String      @default("Groceries")
-  imageUrl    String?
-  items       OrderItem[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-}
-
-model Order {
-  id              String         @id @default(cuid())
-  type            OrderType      @default(ONLINE)
-  status          OrderStatus    @default(PENDING)
-  totalAmount     Float
-  deliveryAddress String?
-  
-  customerId      String?
-  customer        User?          @relation("CustomerOrders", fields: [customerId], references: [id])
-  
-  deliveryAgentId String?
-  deliveryAgent   User?          @relation("DeliveryOrders", fields: [deliveryAgentId], references: [id])
-  
-  items           OrderItem[]
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-}
-
-model OrderItem {
-  id        String   @id @default(cuid())
-  orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product  @relation(fields: [productId], references: [id])
-  quantity  Int
+  id        String   @id @default(uuid())
+  barcode   String   @unique
+  name      String
   price     Float
+  stock     Int      @default(0)
+  category  String   @default("General")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
