@@ -1,146 +1,109 @@
 import Link from "next/link";
-import { getSession } from "@/lib/auth";
 
-export default async function HomePage() {
-  const session = await getSession();
-
-  const portals = [
+export default function HomePage() {
+  const cards = [
     {
       title: "Online Storefront",
       role: "Customers",
-      href: "/shop" as const,
-      badge: "Shop Now",
-      badgeColor: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+      href: "/shop",
+      badge: "Shop Online",
+      badgeClass: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
       icon: "🛍️",
-      accent: "hover:border-emerald-500/50 hover:shadow-emerald-500/10",
-      description: "Browse products, order essentials, and get doorstep deliveries.",
+      accent: "hover:border-emerald-500/60 hover:shadow-emerald-500/10",
+      description: "Browse essentials, add products to cart, and order direct cash-on-delivery groceries.",
     },
     {
       title: "POS Billing Terminal",
-      role: "Sales Boy",
-      href: "/pos" as const,
-      badge: "Quick Scan",
-      badgeColor: "bg-blue-500/10 text-blue-400 border-blue-500/30",
-      icon: "🛒",
-      accent: "hover:border-blue-500/50 hover:shadow-blue-500/10",
-      description: "Fast barcode scan gun lookup, rapid cart billing, and stock decrement.",
+      role: "Sales Counter",
+      href: "/pos",
+      badge: "Fast Scan",
+      badgeClass: "bg-blue-500/10 text-blue-400 border-blue-500/30",
+      icon: "💳",
+      accent: "hover:border-blue-500/60 hover:shadow-blue-500/10",
+      description: "High-speed barcode scanner POS billing with automatic inventory decrement and receipts.",
     },
     {
-      title: "Delivery Agent Portal",
-      role: "Delivery Driver",
-      href: "/delivery" as const,
-      badge: "Orders & Route",
-      badgeColor: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+      title: "Delivery Agent Hub",
+      role: "Dispatch Fleet",
+      href: "/delivery",
+      badge: "Live Dispatch",
+      badgeClass: "bg-amber-500/10 text-amber-400 border-amber-500/30",
       icon: "🛵",
-      accent: "hover:border-amber-500/50 hover:shadow-amber-500/10",
-      description: "Order dispatch, click-to-call, Google Maps navigation, and delivery proofs.",
+      accent: "hover:border-amber-500/60 hover:shadow-amber-500/10",
+      description: "Live package routes, 1-click status transitions, Google Maps routing, and customer dialer.",
     },
     {
       title: "Staff & Management",
-      role: "Owner / Manager",
-      href: "/admin/staff" as const,
-      badge: "Administration",
-      badgeColor: "bg-purple-500/10 text-purple-400 border-purple-500/30",
+      role: "Owner Admin",
+      href: "/admin/staff",
+      badge: "Admin Access",
+      badgeClass: "bg-purple-500/10 text-purple-400 border-purple-500/30",
       icon: "👑",
-      accent: "hover:border-purple-500/50 hover:shadow-purple-500/10",
-      description: "Add team members, assign POS/Delivery roles, and inspect inventory.",
+      accent: "hover:border-purple-500/60 hover:shadow-purple-500/10",
+      description: "Create employee logins, assign POS & Delivery credentials, and manage operations.",
     },
-  ] as const;
+  ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-blue-500 selection:text-white">
-      {/* Top Navigation */}
-      <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl px-6 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-xl">
-              🏪
-            </div>
+    <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 flex-1 flex flex-col justify-center">
+      {/* Hero Badge */}
+      <div className="text-center space-y-4 max-w-3xl mx-auto">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs font-mono text-slate-300">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+          Supermarket Cloud OS Ready
+        </div>
+
+        <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight">
+          Supermarket POS & <br />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-emerald-400">
+            Express Delivery Platform
+          </span>
+        </h1>
+
+        <p className="text-sm sm:text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
+          Select your portal to launch physical counter billing, driver route tracking, or our customer online grocery storefront.
+        </p>
+      </div>
+
+      {/* Grid of Portals */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-12">
+        {cards.map((card) => (
+          <Link
+            key={card.title}
+            href={card.href}
+            className={`group bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 transition-all duration-200 hover:-translate-y-1 shadow-xl backdrop-blur-sm flex flex-col justify-between ${card.accent}`}
+          >
             <div>
-              <span className="font-bold text-base text-white tracking-tight block">Nag Supermarket</span>
-              <span className="text-[11px] text-slate-400 font-mono">Retail OS & Delivery</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {session ? (
-              <div className="flex items-center gap-3">
-                <span className="text-xs bg-slate-800 text-slate-300 px-3 py-1.5 rounded-full border border-slate-700">
-                  {session.name} ({session.role})
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-3xl p-2.5 rounded-xl bg-slate-800/60 border border-slate-700/50">
+                  {card.icon}
                 </span>
-                <Link
-                  href="/login"
-                  className="text-xs text-rose-400 hover:text-rose-300 font-semibold"
+                <span
+                  className={`text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded-full border ${card.badgeClass}`}
                 >
-                  Switch
-                </Link>
+                  {card.badge}
+                </span>
               </div>
-            ) : (
-              <Link
-                href="/login"
-                className="text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl transition shadow-sm"
-              >
-                Sign In
-              </Link>
-            )}
-          </div>
-        </div>
-      </header>
+              <span className="text-[11px] font-mono text-slate-400 uppercase font-semibold tracking-wider block">
+                {card.role}
+              </span>
+              <h2 className="text-lg font-bold text-white mt-1 group-hover:text-blue-400 transition">
+                {card.title}
+              </h2>
+              <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+                {card.description}
+              </p>
+            </div>
 
-      {/* Hero Section */}
-      <main className="max-w-6xl mx-auto px-6 py-12 flex-1 flex flex-col justify-center">
-        <div className="text-center max-w-3xl mx-auto space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-slate-300 text-xs font-mono">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            All Terminals Active
-          </div>
-
-          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
-            Integrated Supermarket Operating System
-          </h1>
-
-          <p className="text-sm sm:text-base text-slate-400 max-w-xl mx-auto leading-relaxed">
-            Select an operational portal below to start managing counter sales, live order dispatches, or shopping online.
-          </p>
-        </div>
-
-        {/* Portal Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-12">
-          {portals.map((p) => (
-            <Link
-              key={p.title}
-              href={p.href as any}
-              className={`group bg-slate-900/80 border border-slate-800 rounded-2xl p-6 transition-all duration-200 hover:-translate-y-1 shadow-lg ${p.accent} flex flex-col justify-between`}
-            >
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="text-3xl">{p.icon}</div>
-                  <span className={`text-[10px] uppercase font-mono font-bold px-2 py-0.5 rounded-full border ${p.badgeColor}`}>
-                    {p.badge}
-                  </span>
-                </div>
-                <span className="text-[11px] font-mono text-slate-400 block mb-1">{p.role}</span>
-                <h2 className="text-base font-bold text-white group-hover:text-blue-400 transition-colors">
-                  {p.title}
-                </h2>
-                <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                  {p.description}
-                </p>
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400 group-hover:text-slate-200">
-                <span className="font-medium">Launch Portal</span>
-                <span className="text-blue-400 font-bold group-hover:translate-x-1 transition-transform">→</span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-800/60 text-center py-6 text-xs text-slate-500 font-mono">
-        Nag Supermarket • Next.js 15 & Neon PostgreSQL
-      </footer>
-    </div>
+            <div className="mt-6 pt-4 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400 font-medium group-hover:text-slate-200">
+              <span>Open Portal</span>
+              <span className="text-blue-400 font-bold group-hover:translate-x-1.5 transition-transform">
+                →
+              </span>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </main>
   );
 }
