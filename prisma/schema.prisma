@@ -1,175 +1,24 @@
-generator client {
-  provider = "prisma-client-js"
-}
-
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
-enum UserRole {
-  CUSTOMER
+enum Role {
   ADMIN
-  STAFF
-}
-
-enum OrderStatus {
-  NEW
-  CONFIRMED
-  PACKED
-  OUT_FOR_DELIVERY
-  DELIVERED
-  CANCELLED
-}
-
-enum PaymentStatus {
-  PENDING
-  PAID
-  FAILED
-  REFUNDED
-}
-
-enum PaymentMethod {
-  COD
-  UPI
-  CARD
-  NET_BANKING
-  CASH
-  MULTI
-}
-
-enum InventoryTxnType {
-  IN
-  OUT
-  ADJUSTMENT
-  DAMAGE
-  EXPIRY
-  TRANSFER
+  CUSTOMER
+  CASHIER
 }
 
 model User {
-  id            String                @id @default(cuid())
-  firebaseUid   String?               @unique
-  email         String                @unique
-  name          String
-  phone         String?
-  role          UserRole              @default(CUSTOMER)
-  active        Boolean               @default(true)
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
-  orders        Order[]               @relation("CustomerOrders")
-  statusChanges OrderStatusHistory[]
-  auditLogs     AuditLog[]
-  addresses     Address[]
-}
-
-model Category {
-  id          String     @id @default(cuid())
-  name        String     @unique
-  slug        String     @unique
-  active      Boolean    @default(true)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  products    Product[]
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      Role     @default(CUSTOMER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Product {
-  id          String         @id @default(cuid())
-  name        String
-  slug        String         @unique
-  description String?
-  price       Decimal        @db.Decimal(12, 2)
-  costPrice   Decimal?       @db.Decimal(12, 2)
-  stock       Int            @default(0)
-  barcode     String?        @unique
-  imageUrl    String?
-  active      Boolean        @default(true)
-  categoryId  String
-  category    Category       @relation(fields: [categoryId], references: [id])
-  items       OrderItem[]
-  inventory   InventoryTxn[]
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-}
-
-model Address {
-  id         String   @id @default(cuid())
-  userId     String
-  label      String
-  line1      String
-  line2      String?
-  city       String
-  state      String
-  postalCode String
-  phone      String?
-  isDefault  Boolean  @default(false)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orders     Order[]
-  createdAt  DateTime @default(now())
-}
-
-model Order {
-  id             String               @id @default(cuid())
-  orderNumber    String               @unique
-  userId         String
-  user           User                 @relation("CustomerOrders", fields: [userId], references: [id])
-  addressId      String?
-  address        Address?             @relation(fields: [addressId], references: [id])
-  status         OrderStatus          @default(NEW)
-  subtotal       Decimal              @db.Decimal(12, 2)
-  discount       Decimal              @default(0) @db.Decimal(12, 2)
-  deliveryCharge Decimal              @default(0) @db.Decimal(12, 2)
-  tax            Decimal              @default(0) @db.Decimal(12, 2)
-  total          Decimal              @db.Decimal(12, 2)
-  paymentStatus  PaymentStatus        @default(PENDING)
-  paymentMethod  PaymentMethod        @default(COD)
-  notes          String?
-  items          OrderItem[]
-  statusHistory  OrderStatusHistory[]
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
-}
-
-model OrderItem {
   id        String   @id @default(cuid())
-  orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product  @relation(fields: [productId], references: [id])
-  quantity  Int
-  price     Decimal  @db.Decimal(12, 2)
-  subtotal  Decimal  @db.Decimal(12, 2)
+  name      String
+  barcode   String   @unique
+  price     Float
+  stock     Int      @default(0)
   createdAt DateTime @default(now())
-}
-
-model OrderStatusHistory {
-  id        String      @id @default(cuid())
-  orderId   String
-  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  status    OrderStatus
-  note      String?
-  changedBy String?
-  user      User?       @relation(fields: [changedBy], references: [id])
-  createdAt DateTime    @default(now())
-}
-
-model InventoryTxn {
-  id        String           @id @default(cuid())
-  productId String
-  product   Product          @relation(fields: [productId], references: [id])
-  type      InventoryTxnType
-  quantity  Int
-  reference String?
-  note      String?
-  createdAt DateTime         @default(now())
-}
-
-model AuditLog {
-  id        String   @id @default(cuid())
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
-  action    String
-  resource  String
-  details   String?
-  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
