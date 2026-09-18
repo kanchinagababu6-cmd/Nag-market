@@ -1,64 +1,112 @@
-import { PrismaClient, UserRole } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const categories = [
-    ["Groceries", "groceries"],
-    ["Dairy", "dairy"],
-    ["Beverages", "beverages"],
-    ["Snacks", "snacks"]
+  console.log("Seeding database...");
+
+  // 1. Create Default Owner Account
+  const owner = await prisma.user.upsert({
+    where: { email: "owner@supermarket.com" },
+    update: {},
+    create: {
+      name: "Supermarket Owner",
+      email: "owner@supermarket.com",
+      password: "adminpassword123",
+      role: "OWNER",
+      phone: "9988776655",
+    },
+  });
+  console.log("Owner created:", owner.email);
+
+  // 2. Create Default Sales Boy Account
+  await prisma.user.upsert({
+    where: { email: "sales@supermarket.com" },
+    update: {},
+    create: {
+      name: "Ramesh (POS Counter)",
+      email: "sales@supermarket.com",
+      password: "salespassword123",
+      role: "SALES_BOY",
+      phone: "9876543210",
+    },
+  });
+
+  // 3. Create Default Delivery Agent Account
+  await prisma.user.upsert({
+    where: { email: "delivery@supermarket.com" },
+    update: {},
+    create: {
+      name: "Suresh (Delivery)",
+      email: "delivery@supermarket.com",
+      password: "deliverypassword123",
+      role: "DELIVERY_AGENT",
+      phone: "9123456780",
+    },
+  });
+
+  // 4. Seed Inventory Products with Barcodes
+  const sampleProducts = [
+    {
+      name: "Basmati Rice 5kg",
+      barcode: "8901234567890",
+      price: 450.0,
+      stock: 40,
+      category: "Grains",
+    },
+    {
+      name: "Sunflower Cooking Oil 1L",
+      barcode: "8901234567891",
+      price: 135.0,
+      stock: 60,
+      category: "Oils",
+    },
+    {
+      name: "Whole Wheat Atta 10kg",
+      barcode: "8901234567892",
+      price: 380.0,
+      stock: 25,
+      category: "Flour",
+    },
+    {
+      name: "Toor Dal 1kg",
+      barcode: "8901234567893",
+      price: 160.0,
+      stock: 50,
+      category: "Pulses",
+    },
+    {
+      name: "Sugar 1kg",
+      barcode: "8901234567894",
+      price: 45.0,
+      stock: 100,
+      category: "Essentials",
+    },
+    {
+      name: "Milk Packet 500ml",
+      barcode: "8901234567895",
+      price: 28.0,
+      stock: 80,
+      category: "Dairy",
+    },
   ];
 
-  for (const [name, slug] of categories) {
-    await prisma.category.upsert({
-      where: { slug },
-      update: {},
-      create: { name, slug }
-    });
-  }
-
-  const grocery = await prisma.category.findUniqueOrThrow({ where: { slug: "groceries" } });
-
-  const products = [
-    { barcode: "890000000001", name: "Premium Rice 5kg", slug: "premium-rice-5kg", price: 395, costPrice: 350, stock: 50 },
-    { barcode: "890000000002", name: "Sunflower Oil 1L", slug: "sunflower-oil-1l", price: 145, costPrice: 125, stock: 40 },
-    { barcode: "890000000003", name: "Toor Dal 1kg", slug: "toor-dal-1kg", price: 165, costPrice: 140, stock: 35 }
-  ];
-
-  for (const p of products) {
+  for (const item of sampleProducts) {
     await prisma.product.upsert({
-      where: { slug: p.slug },
-      update: {
-        stock: p.stock,
-        price: p.price,
-        costPrice: p.costPrice
-      },
-      create: {
-        barcode: p.barcode,
-        name: p.name,
-        slug: p.slug,
-        price: p.price,
-        costPrice: p.costPrice,
-        stock: p.stock,
-        categoryId: grocery.id
-      }
+      where: { barcode: item.barcode },
+      update: { stock: item.stock, price: item.price },
+      create: item,
     });
   }
 
-  const demoUsers = [
-    ["admin@example.com", "Demo Admin", UserRole.ADMIN],
-    ["staff@example.com", "Demo Staff", UserRole.STAFF],
-    ["customer@example.com", "Demo Customer", UserRole.CUSTOMER]
-  ] as const;
-
-  for (const [email, name, role] of demoUsers) {
-    await prisma.user.upsert({
-      where: { email },
-      update: { role },
-      create: { email, name, role }
-    });
-  }
+  console.log("Database seeded successfully!");
 }
 
-main().finally(() => prisma.$disconnect());
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
