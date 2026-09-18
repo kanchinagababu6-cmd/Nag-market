@@ -67,6 +67,7 @@ model User {
   orders        Order[]     @relation("CustomerOrders")
   statusChanges OrderStatusHistory[]
   auditLogs     AuditLog[]
+  addresses     Address[]
 }
 
 model Category {
