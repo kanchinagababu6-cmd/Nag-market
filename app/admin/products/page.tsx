@@ -40,6 +40,10 @@ export default function AdminProductsPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [matchFound, setMatchFound] = useState(false);
 
+  // Category-wise browse filter
+  const [filterDept, setFilterDept] = useState("All");
+  const [filterSub, setFilterSub] = useState("All");
+
   // Tab 2 scan & edit state
   const [scanQuery, setScanQuery] = useState("");
   const [scannedProduct, setScannedProduct] = useState<Product | null>(null);
@@ -183,13 +187,19 @@ export default function AdminProductsPage() {
     }
   };
 
+  const filteredCatalog = products.filter((p) => {
+    const matchDept = filterDept === "All" || p.category === filterDept;
+    const matchSub = filterSub === "All" || p.subCategory === filterSub;
+    return matchDept && matchSub;
+  });
+
   return (
     <div className="w-full max-w-6xl mx-auto p-4 space-y-5">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
         <div>
           <h1 className="text-xl font-bold text-white">📦 Product & Inventory Operations</h1>
-          <p className="text-xs text-slate-400">Scan to update catalog or scan to inspect & edit rate/qty</p>
+          <p className="text-xs text-slate-400">Category-wise catalog management, barcode restock & rate editing</p>
         </div>
         <Link href="/" className="text-xs px-3.5 py-1.5 bg-slate-800 text-slate-300 hover:text-white rounded-xl border border-slate-700">
           ← Home
@@ -325,7 +335,7 @@ export default function AdminProductsPage() {
         </div>
       )}
 
-      {/* TAB 2: SCAN BARCODE TO VIEW DETAILS & EDIT RATE/QTY */}
+      {/* TAB 2: SCAN TO VIEW & EDIT */}
       {activeTab === "view" && (
         <div className="space-y-4">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-2">
@@ -360,7 +370,6 @@ export default function AdminProductsPage() {
                 </span>
                 <span className="font-mono text-xs text-slate-400">SKU: {scannedProduct.barcode}</span>
               </div>
-
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <div className="w-20 h-20 rounded-xl bg-slate-950 border border-slate-800 overflow-hidden flex items-center justify-center shrink-0">
                   {scannedProduct.imageUrl ? <img src={scannedProduct.imageUrl} alt={scannedProduct.name} className="w-full h-full object-cover" /> : <span className="text-2xl">📦</span>}
@@ -374,7 +383,6 @@ export default function AdminProductsPage() {
                   </div>
                 </div>
               </div>
-
               <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
                 <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Update Selling Rate & Stock Units</h3>
                 <form onSubmit={handleUpdateScannedProduct} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -413,7 +421,7 @@ export default function AdminProductsPage() {
             </div>
           ) : scanQuery ? (
             <div className="p-8 bg-slate-900 border border-slate-800 rounded-2xl text-center text-slate-500 text-xs font-mono">
-              No product found with barcode "{scanQuery}". Switch to Tab 1 to register it.
+              No product found with barcode "{scanQuery}".
             </div>
           ) : (
             <div className="p-10 bg-slate-900 border border-slate-800 rounded-2xl text-center text-slate-500 text-xs font-mono">
@@ -422,6 +430,6 @@ export default function AdminProductsPage() {
           )}
         </div>
       )}
-    </div>
-  );
-}
+
+      {/* CATEGORY-WISE CATALOG VIEWER */}
+      <div className="bg-slate-900
