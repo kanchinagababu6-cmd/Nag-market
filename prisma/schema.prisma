@@ -1,40 +1,12 @@
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
-generator client {
-  provider = "prisma-client-js"
-}
-
-enum Role {
-  OWNER
-  MANAGER
-  SALES_BOY
-  DELIVERY_AGENT
-  CUSTOMER
-}
-
-model User {
-  id        String   @id @default(uuid())
-  email     String?  @unique
-  phone     String?  @unique
-  password  String?
-  name      String
-  role      Role     @default(CUSTOMER)
-  otp       String?
-  otpExpiry DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
 model Product {
-  id        String   @id @default(uuid())
-  barcode   String   @unique
-  name      String
-  price     Float
-  stock     Int      @default(0)
-  category  String   @default("General")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(uuid())
+  barcode     String   @unique
+  name        String
+  price       Float
+  stock       Int      @default(0)
+  category    String   @default("Staples & Grains")
+  subCategory String   @default("Atta, Flours & Sooji")
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
