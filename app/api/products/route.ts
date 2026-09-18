@@ -1,50 +1,40 @@
-import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { NextResponse } from "next/server";
 
 const prisma = new PrismaClient();
 
 export async function GET() {
-  try {
-    const products = await prisma.product.findMany({
-      orderBy: { createdAt: "desc" },
-    });
-    return NextResponse.json(products);
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || "Failed to load products" },
-      { status: 500 }
-    );
-  }
+  const products = await prisma.product.findMany({
+    orderBy: { createdAt: "desc" },
+  });
+  return NextResponse.json(products);
 }
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { name, barcode, price, stock, category, imageUrl } = body;
-
-    if (!name || !barcode || price === undefined) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
-
-    const product = await prisma.product.create({
-      data: {
-        name,
-        barcode: barcode.trim(),
-        price: parseFloat(price),
-        stock: parseInt(stock, 10) || 0,
-        category: category || "General",
-        imageUrl: imageUrl || null,
+    const data = await req.json();
+    const product = await prisma.product.upsert({
+      where: { barcode: data.barcode },
+      update: {
+        name: data.name,
+        price: data.price,
+        stock: data.stock,
+        category: data.category,
+        subCategory: data.subCategory,
+        imageUrl: data.imageUrl,
+      },
+      create: {
+        barcode: data.barcode,
+        name: data.name,
+        price: data.price,
+        stock: data.stock,
+        category: data.category,
+        subCategory: data.subCategory,
+        imageUrl: data.imageUrl,
       },
     });
-
-    return NextResponse.json(product, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || "Failed to create product" },
-      { status: 500 }
-    );
+    return NextResponse.json(product);
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to save product" }, { status: 500 });
   }
 }
