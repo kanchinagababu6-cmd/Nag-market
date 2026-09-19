@@ -22,7 +22,7 @@ export default async function HomePage() {
             href="/"
             className="text-sm sm:text-base font-black tracking-wider text-emerald-400 font-mono hover:text-emerald-300 transition"
           >
-            NAG MARKET
+            SIRILWOODS 
           </Link>
 
           <div className="flex items-center gap-3">
