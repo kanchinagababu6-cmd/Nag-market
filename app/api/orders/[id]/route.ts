@@ -1,31 +1,46 @@
-import { PrismaClient } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
-const prisma = new PrismaClient();
-
 export async function PATCH(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  request: Request,
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getSession();
-    if (!session || !["OWNER", "MANAGER", "DELIVERY_AGENT"].includes(session.role)) {
+
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
-    const body = await req.json();
+    const { role } = session;
+    const isAuthorized =
+      role === "OWNER" ||
+      role === "MANAGER" ||
+      role === "SALES_BOY" ||
+      role === "DELIVERY_AGENT";
+
+    if (!isAuthorized) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const body = await request.json();
     const { status } = body;
 
-    const updated = await prisma.order.update({
-      where: { id },
-      data: { status },
+    const updatedOrder = await prisma.order.update({
+      where: { id: params.id },
+      data: {
+        status,
+        ...(role === "DELIVERY_AGENT" ? { deliveryAgentId: session.id } : {}),
+      },
     });
 
-    return NextResponse.json({ success: true, order: updated });
+    return NextResponse.json(updatedOrder);
   } catch (error) {
-    console.error("Order status update failed:", error);
-    return NextResponse.json({ error: "Update failed" }, { status: 500 });
+    console.error("Order update error:", error);
+    return NextResponse.json(
+      { error: "Failed to update order status" },
+      { status: 500 }
+    );
   }
 }
