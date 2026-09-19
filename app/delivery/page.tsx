@@ -29,14 +29,33 @@ export default function DeliveryDispatchHub() {
       const res = await fetch("/api/orders/user?all=true");
       const data = await res.json();
       if (Array.isArray(data)) {
-        // Filter only delivery orders that are Packed or currently Out For Delivery
+        // Strict filter: Exclude POS bills and Store Pickups
         const deliveryOrders = data.filter((o) => {
-          const isHomeDelivery =
-            o.deliveryAddress &&
-            o.deliveryAddress.trim().toLowerCase() !== "store pickup" &&
-            o.deliveryAddress.trim().toLowerCase() !== "pickup";
-          return isHomeDelivery && (o.status === "PACKED" || o.status === "OUT_FOR_DELIVERY" || o.status === "ORDER_PLACED");
+          const addr = (o.deliveryAddress || "").trim().toLowerCase();
+          const pay = (o.paymentMethod || "").trim().toLowerCase();
+
+          // 1. Must NOT be POS or counter sale
+          const isPos = pay.includes("pos") || addr.includes("pos") || addr.includes("counter");
+
+          // 2. Must NOT be Store Pickup
+          const isPickup =
+            pay.includes("pickup") ||
+            addr.includes("pickup") ||
+            addr === "store pickup" ||
+            addr === "";
+
+          // 3. Must have an actual home delivery address
+          const isHomeDelivery = !isPos && !isPickup;
+
+          // 4. Must be active for delivery (not already finished or cancelled)
+          const isActiveStatus =
+            o.status === "PACKED" ||
+            o.status === "OUT_FOR_DELIVERY" ||
+            o.status === "ORDER_PLACED";
+
+          return isHomeDelivery && isActiveStatus;
         });
+
         setOrders(deliveryOrders);
       }
     } catch (e) {
@@ -61,7 +80,6 @@ export default function DeliveryDispatchHub() {
       });
       if (res.ok) {
         if (status === "COMPLETED") {
-          // Remove from delivery list once completed
           setOrders((prev) => prev.filter((o) => o.id !== id));
         } else {
           setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
@@ -79,7 +97,7 @@ export default function DeliveryDispatchHub() {
           <h1 className="text-base font-bold text-white flex items-center gap-2">
             🛵 Delivery Dispatch Hub
           </h1>
-          <p className="text-xs text-slate-400">Assigned customer orders for home delivery</p>
+          <p className="text-xs text-slate-400">Home delivery orders only (POS & Pickups excluded)</p>
         </div>
         <Link
           href="/"
@@ -94,14 +112,14 @@ export default function DeliveryDispatchHub() {
           <p className="text-center text-slate-500 text-xs py-8 font-mono">Loading deliveries...</p>
         ) : orders.length === 0 ? (
           <div className="p-10 bg-slate-900 border border-slate-800 rounded-3xl text-center text-slate-500 text-xs font-mono">
-            🎉 All deliveries completed! No pending dispatches.
+            🎉 No home delivery orders waiting right now.
           </div>
         ) : (
           orders.map((order) => {
             const encodedAddr = encodeURIComponent(order.deliveryAddress || "");
             const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddr}`;
             const waUrl = `https://wa.me/91${order.customerPhone}?text=${encodeURIComponent(
-              `Hello ${order.customerName}, your Nag Market grocery order #${order.id.slice(0, 6).toUpperCase()} is on the way!`
+              `Hello ${order.customerName}, your Nag Market order #${order.id.slice(0, 6).toUpperCase()} is out for delivery!`
             )}`;
 
             return (
@@ -128,10 +146,9 @@ export default function DeliveryDispatchHub() {
                       ₹{order.totalAmount.toFixed(2)} ({order.paymentMethod})
                     </span>
                   </div>
-                  <p className="text-slate-300 text-xs">📍 {order.deliveryAddress}</p>
+                  <p className="text-slate-300 text-xs">🏠 {order.deliveryAddress}</p>
                 </div>
 
-                {/* Items preview */}
                 <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-xs font-mono">
                   {order.items?.map((it) => (
                     <div key={it.id} className="flex justify-between py-0.5 text-slate-300">
@@ -141,7 +158,6 @@ export default function DeliveryDispatchHub() {
                   ))}
                 </div>
 
-                {/* Navigation and Status Flow */}
                 <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800">
                   <a
                     href={mapsUrl}
