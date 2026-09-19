@@ -26,40 +26,39 @@ export default function DeliveryDispatchHub() {
 
   const fetchDeliveries = async () => {
     try {
-      const res = await fetch("/api/orders/user?all=true");
+      let res = await fetch("/api/orders?all=true");
+      if (!res.ok) {
+        res = await fetch("/api/orders/user?all=true");
+      }
       const data = await res.json();
-      if (Array.isArray(data)) {
-        // Strict filter: Exclude POS bills and Store Pickups
-        const deliveryOrders = data.filter((o) => {
+      const list = Array.isArray(data) ? data : data.orders || [];
+
+      if (Array.isArray(list)) {
+        const deliveryOrders = list.filter((o: any) => {
           const addr = (o.deliveryAddress || "").trim().toLowerCase();
           const pay = (o.paymentMethod || "").trim().toLowerCase();
 
-          // 1. Must NOT be POS or counter sale
           const isPos = pay.includes("pos") || addr.includes("pos") || addr.includes("counter");
-
-          // 2. Must NOT be Store Pickup
           const isPickup =
             pay.includes("pickup") ||
             addr.includes("pickup") ||
             addr === "store pickup" ||
             addr === "";
 
-          // 3. Must have an actual home delivery address
           const isHomeDelivery = !isPos && !isPickup;
 
-          // 4. Must be active for delivery (not already finished or cancelled)
-          const isActiveStatus =
+          const isActive =
+            o.status === "ORDER_PLACED" ||
             o.status === "PACKED" ||
-            o.status === "OUT_FOR_DELIVERY" ||
-            o.status === "ORDER_PLACED";
+            o.status === "OUT_FOR_DELIVERY";
 
-          return isHomeDelivery && isActiveStatus;
+          return isHomeDelivery && isActive;
         });
 
         setOrders(deliveryOrders);
       }
     } catch (e) {
-      console.error(e);
+      console.error("Fetch error:", e);
     } finally {
       setLoading(false);
     }
@@ -84,9 +83,11 @@ export default function DeliveryDispatchHub() {
         } else {
           setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
         }
+      } else {
+        alert("Failed to update status");
       }
     } catch {
-      alert("Failed to update status");
+      alert("Network error updating status");
     }
   };
 
@@ -99,12 +100,20 @@ export default function DeliveryDispatchHub() {
           </h1>
           <p className="text-xs text-slate-400">Home delivery orders only (POS & Pickups excluded)</p>
         </div>
-        <Link
-          href="/"
-          className="text-xs px-3.5 py-1.5 bg-slate-800 text-slate-300 rounded-xl border border-slate-700"
-        >
-          ← Workstation
-        </Link>
+        <div className="flex gap-2">
+          <button
+            onClick={fetchDeliveries}
+            className="text-xs px-3 py-1.5 bg-slate-800 text-slate-300 rounded-xl border border-slate-700"
+          >
+            🔄 Refresh
+          </button>
+          <Link
+            href="/"
+            className="text-xs px-3.5 py-1.5 bg-slate-800 text-slate-300 rounded-xl border border-slate-700"
+          >
+            ← Workstation
+          </Link>
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -119,7 +128,7 @@ export default function DeliveryDispatchHub() {
             const encodedAddr = encodeURIComponent(order.deliveryAddress || "");
             const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddr}`;
             const waUrl = `https://wa.me/91${order.customerPhone}?text=${encodeURIComponent(
-              `Hello ${order.customerName}, your Nag Market order #${order.id.slice(0, 6).toUpperCase()} is out for delivery!`
+              `Hello ${order.customerName}, your Nag Market order #${order.id.slice(0, 6).toUpperCase()} is on the way!`
             )}`;
 
             return (
