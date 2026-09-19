@@ -5,7 +5,7 @@ import { getSession, clearSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Sirilwoods | Operating System",
+  title: "Nag Supermarket | Operating System",
   description: "Retail Counter POS & Online Grocery Delivery",
 };
 
@@ -92,7 +92,7 @@ export default async function RootLayout({
 
         {/* Footer */}
         <footer className="w-full border-t border-slate-900 py-4 text-center text-xs text-slate-500">
-          Sirilwoods OS • Next.js 15 & Neon
+          Nag Supermarket OS • Next.js 15 & Neon
         </footer>
       </body>
     </html>
