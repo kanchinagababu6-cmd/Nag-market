@@ -120,7 +120,7 @@ export default async function LoginPage({
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-blue-600/20 border border-blue-500/30 text-2xl mb-2">
           🏪
         </div>
-        <h1 className="text-xl font-black text-white tracking-tight">Nag Supermarket</h1>
+        <h1 className="text-xl font-black text-white tracking-tight">SIRILWOODS</h1>
         <p className="text-xs text-slate-400 mt-0.5">Unified Customer & Staff Access Portal</p>
       </div>
 
