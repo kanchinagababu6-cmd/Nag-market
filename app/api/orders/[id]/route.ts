@@ -24,7 +24,6 @@ export async function PATCH(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Resolve params safely whether synchronous or asynchronous (Next 14/15+)
     const resolvedParams = await Promise.resolve(context.params);
     const orderId = resolvedParams?.id;
 
@@ -39,21 +38,10 @@ export async function PATCH(
       return NextResponse.json({ error: "Status is required" }, { status: 400 });
     }
 
-    // Construct update data
-    const updateData: Record<string, any> = { status };
-
-    // Link delivery agent if session contains an ID
-    if (role === "DELIVERY_AGENT" && session.id) {
-      try {
-        updateData.deliveryAgentId = session.id;
-      } catch {
-        // Continue if field is absent in schema
-      }
-    }
-
+    // Only update status to prevent Prisma unknown-field errors
     const updatedOrder = await prisma.order.update({
       where: { id: orderId },
-      data: updateData,
+      data: { status },
     });
 
     return NextResponse.json(updatedOrder);
@@ -64,4 +52,12 @@ export async function PATCH(
       { status: 500 }
     );
   }
+}
+
+// Also support PUT if the frontend is calling PUT
+export async function PUT(
+  request: Request,
+  context: { params: Promise<{ id: string }> | { id: string } }
+) {
+  return PATCH(request, context);
 }
