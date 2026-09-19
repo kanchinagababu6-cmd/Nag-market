@@ -408,5 +408,4 @@ export default function StoreHomePage() {
       )}
     </div>
   );
- }
 }
