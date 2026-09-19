@@ -50,6 +50,7 @@ export default function ShopPage() {
 
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
   const [userOrders, setUserOrders] = useState<Order[]>([]);
+  const [ordersPhoneInput, setOrdersPhoneInput] = useState("");
 
   const fetchCatalog = async () => {
     try {
@@ -63,11 +64,19 @@ export default function ShopPage() {
 
   useEffect(() => {
     fetchCatalog();
+    const savedPhone = localStorage.getItem("nag_customer_phone");
+    if (savedPhone) {
+      setPhone(savedPhone);
+      setOrdersPhoneInput(savedPhone);
+    }
   }, []);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (targetPhone?: string) => {
     try {
-      const res = await fetch("/api/orders/user?all=true");
+      const activePhone = targetPhone || ordersPhoneInput || phone;
+      const queryParam = activePhone ? `?phone=${encodeURIComponent(activePhone)}` : "";
+      
+      const res = await fetch(`/api/orders/user${queryParam}`);
       const data = await res.json();
       const list = Array.isArray(data) ? data : data?.orders || [];
       setUserOrders(list);
@@ -116,10 +125,13 @@ export default function ShopPage() {
           totalAmount: cartTotal,
         }),
       });
+
       if (res.ok) {
+        localStorage.setItem("nag_customer_phone", phone);
+        setOrdersPhoneInput(phone);
         setCart([]);
         setIsCartOpen(false);
-        fetchOrders();
+        fetchOrders(phone);
         setIsOrdersOpen(true);
       } else {
         alert("Checkout failed. Please try again.");
@@ -140,7 +152,7 @@ export default function ShopPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-24">
-      {/* Navigation Header */}
+      {/* Top Header */}
       <header className="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3">
         <div className="max-w-md mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -157,7 +169,7 @@ export default function ShopPage() {
       </header>
 
       <main className="max-w-md mx-auto p-4 space-y-4">
-        {/* Quick Controls Card */}
+        {/* Quick Menu Card */}
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 space-y-3">
           <div className="flex items-center justify-between text-xs">
             <span className="text-slate-300 font-medium">📍 Doorstep: <strong className="text-white">Main Town</strong></span>
@@ -217,7 +229,7 @@ export default function ShopPage() {
           </div>
         </div>
 
-        {/* Product Catalog Grid */}
+        {/* Catalog */}
         <div className="grid grid-cols-2 gap-3">
           {filtered.map((product) => (
             <div key={product.id} className="bg-slate-900 border border-slate-800 rounded-3xl p-3 flex flex-col justify-between">
@@ -246,7 +258,7 @@ export default function ShopPage() {
         </div>
       </main>
 
-      {/* Floating Checkout Button */}
+      {/* Floating Cart Button */}
       {cart.length > 0 && (
         <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto z-40">
           <button
@@ -261,7 +273,7 @@ export default function ShopPage() {
         </div>
       )}
 
-      {/* Checkout Drawer */}
+      {/* Checkout Modal */}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 max-h-[90vh] overflow-y-auto">
@@ -347,18 +359,37 @@ export default function ShopPage() {
         </div>
       )}
 
-      {/* Orders Drawer Modal */}
+      {/* Orders Tracker Modal (Customer Specific) */}
       {isOrdersOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-4 space-y-3 max-h-[80vh] flex flex-col shadow-2xl">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-4 space-y-3 max-h-[85vh] flex flex-col shadow-2xl">
             <div className="flex justify-between items-center border-b border-slate-800 pb-2">
               <span className="text-sm font-bold text-white">📦 Your Orders</span>
               <button onClick={() => setIsOrdersOpen(false)} className="text-xs px-2 py-1 bg-slate-800 text-slate-300 rounded-lg">✕</button>
             </div>
 
+            {/* Quick phone filter to fetch orders if not logged in */}
+            <div className="flex gap-2">
+              <input
+                type="tel"
+                placeholder="Enter 10-digit mobile number"
+                value={ordersPhoneInput}
+                onChange={(e) => setOrdersPhoneInput(e.target.value)}
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none"
+              />
+              <button
+                onClick={() => fetchOrders(ordersPhoneInput)}
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition"
+              >
+                Search
+              </button>
+            </div>
+
             <div className="overflow-y-auto space-y-2 flex-1 pr-1">
               {userOrders.length === 0 ? (
-                <p className="text-center py-6 text-slate-500 text-xs font-mono">No orders found.</p>
+                <p className="text-center py-6 text-slate-500 text-xs font-mono">
+                  No orders found for this number.
+                </p>
               ) : (
                 userOrders.map((ord) => (
                   <div key={ord.id} className="p-2.5 bg-slate-950 border border-slate-800/80 rounded-2xl space-y-1.5">
