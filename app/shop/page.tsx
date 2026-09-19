@@ -3,411 +3,569 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
+const CATEGORIES: Record<string, string[]> = {
+  "Staples & Grains": ["Atta, Flours & Sooji", "Rice & Rice Products", "Dals & Pulses", "Edible Oils & Ghee", "Sugar, Jaggery & Salt", "Whole & Ground Spices"],
+  "Dairy & Breakfast": ["Fresh Milk & Curd", "Paneer, Butter & Cheese", "Bread, Pav & Bakery", "Eggs", "Cereals, Oats & Muesli", "Tea, Coffee & Health Drinks"],
+  "Snacks & Packaged Foods": ["Biscuits, Cookies & Rusks", "Namkeen, Chips & Savory Snacks", "Noodles, Pasta & Vermicelli", "Chocolates & Candies", "Sauces, Ketchup, Spreads & Jams", "Instant Ready-to-Eat Mixes"],
+  "Beverages": ["Soft Drinks & Carbonated Sodas", "Fruit Juices & Concentrates", "Packaged Bottled Water & Soda", "Energy & Sports Drinks"],
+  "Fresh Produce": ["Daily Fresh Vegetables", "Seasonal & Exotic Fruits", "Herbs, Lemon, Ginger & Garlic"],
+  "Personal Care & Hygiene": ["Bath Soaps, Body Wash & Handwash", "Hair Care", "Dental Care", "Skincare, Lotions & Powders", "Feminine Hygiene & Baby Care"],
+  "Household & Cleaning": ["Detergents & Fabric Softeners", "Dishwashing Bars & Liquids", "Surface Cleaners & Disinfectants", "Mosquito Repellents & Freshers", "Kitchen Rolls, Foil & Garbage Bags"],
+  "Puja & Pooja Essentials": ["Agarbatti, Dhoop & Camphor", "Puja Oil & Cotton Wicks"],
+};
+
 interface Product {
   id: string;
   name: string;
-  price: number;
+  barcode: string;
   category: string;
+  subCategory: string;
+  price: number;
+  mrp?: number;
+  discount?: number;
   stock: number;
+  imageUrl?: string;
 }
 
 interface CartItem extends Product {
-  quantity: number;
+  cartQty: number;
 }
 
-interface OrderItem {
-  id: string;
-  quantity: number;
-  price: number;
-  product?: { name: string };
-}
-
-interface Order {
-  id: string;
-  deliveryAddress: string;
-  paymentMethod: string;
-  status: string;
-  totalAmount: number;
-  createdAt: string;
-  items: OrderItem[];
-}
-
-export default function ShopPage() {
+export default function CustomerStorefront() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [dept, setDept] = useState("All");
-  const [query, setQuery] = useState("");
-  const [inStockOnly, setInStockOnly] = useState(false);
-
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [search, setSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [activeSubCategory, setActiveSubCategory] = useState("All");
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [fulfillment, setFulfillment] = useState<"DELIVERY" | "PICKUP">("DELIVERY");
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
-  const [payment] = useState("COD");
-  const [loading, setLoading] = useState(false);
+  // Customer Details Form
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("Cash on Delivery");
+  const [submittingOrder, setSubmittingOrder] = useState(false);
 
-  const [isOrdersOpen, setIsOrdersOpen] = useState(false);
-  const [userOrders, setUserOrders] = useState<Order[]>([]);
-  const [ordersPhoneInput, setOrdersPhoneInput] = useState("");
-
-  const fetchCatalog = async () => {
-    try {
-      const res = await fetch("/api/products");
-      const data = await res.json();
-      if (Array.isArray(data)) setProducts(data);
-    } catch (e) {
-      console.error(e);
-    }
-  };
+  // Track Order Modal
+  const [trackPhone, setTrackPhone] = useState("");
+  const [trackingOrders, setTrackingOrders] = useState<any[]>([]);
+  const [isTrackOpen, setIsTrackOpen] = useState(false);
+  const [fetchingTrack, setFetchingTrack] = useState(false);
 
   useEffect(() => {
-    fetchCatalog();
-    const savedPhone = localStorage.getItem("nag_customer_phone");
-    if (savedPhone) {
-      setPhone(savedPhone);
-      setOrdersPhoneInput(savedPhone);
-    }
+    fetch("/api/products")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setProducts(data);
+      })
+      .catch((err) => console.error("Error loading products:", err));
   }, []);
 
-  const fetchOrders = async (targetPhone?: string) => {
-    try {
-      const activePhone = targetPhone || ordersPhoneInput || phone;
-      const queryParam = activePhone ? `?phone=${encodeURIComponent(activePhone)}` : "";
-      
-      const res = await fetch(`/api/orders/user${queryParam}`);
-      const data = await res.json();
-      const list = Array.isArray(data) ? data : data?.orders || [];
-      setUserOrders(list);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const addToCart = (p: Product) => {
-    if (p.stock <= 0) return;
+  const addToCart = (product: Product) => {
     setCart((prev) => {
-      const ex = prev.find((item) => item.id === p.id);
-      if (ex) {
-        return ex.quantity >= p.stock
-          ? prev
-          : prev.map((i) => (i.id === p.id ? { ...i, quantity: i.quantity + 1 } : i));
+      const existing = prev.find((item) => item.id === product.id);
+      if (existing) {
+        return prev.map((item) =>
+          item.id === product.id ? { ...item, cartQty: item.cartQty + 1 } : item
+        );
       }
-      return [...prev, { ...p, quantity: 1 }];
+      return [...prev, { ...product, cartQty: 1 }];
     });
   };
 
   const updateCartQty = (id: string, delta: number) => {
     setCart((prev) =>
       prev
-        .map((item) => (item.id === id ? { ...item, quantity: item.quantity + delta } : item))
-        .filter((item) => item.quantity > 0)
+        .map((item) => {
+          if (item.id === id) {
+            const next = item.cartQty + delta;
+            return next > 0 ? { ...item, cartQty: next } : null;
+          }
+          return item;
+        })
+        .filter(Boolean) as CartItem[]
     );
   };
 
-  const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const totalAmount = cart.reduce((sum, item) => sum + item.price * item.cartQty, 0);
 
-  const handleCheckout = async (e: React.FormEvent) => {
+  const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cart.length) return;
-    setLoading(true);
+    if (!customerName || !customerPhone) return alert("Please fill name and phone");
+    if (!cart.length) return alert("Cart is empty");
+
+    setSubmittingOrder(true);
     try {
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customerName: name,
-          customerPhone: phone,
-          deliveryAddress: fulfillment === "DELIVERY" ? address : "Store Pickup",
-          paymentMethod: `${payment} (${fulfillment})`,
-          items: cart.map((i) => ({ productId: i.id, quantity: i.quantity, price: i.price })),
-          totalAmount: cartTotal,
+          customerName,
+          customerPhone,
+          deliveryAddress,
+          paymentMethod,
+          totalAmount,
+          items: cart.map((i) => ({
+            productId: i.id,
+            quantity: i.cartQty,
+            price: i.price,
+          })),
         }),
       });
 
+      const data = await res.json();
       if (res.ok) {
-        localStorage.setItem("nag_customer_phone", phone);
-        setOrdersPhoneInput(phone);
+        alert("🎉 Order placed successfully! The store has received your order.");
         setCart([]);
         setIsCartOpen(false);
-        fetchOrders(phone);
-        setIsOrdersOpen(true);
+        setIsCheckingOut(false);
       } else {
-        alert("Checkout failed. Please try again.");
+        alert("Error: " + (data.error || "Could not place order"));
       }
-    } catch {
-      alert("Error placing order.");
+    } catch (err: any) {
+      alert("Network Error: " + err.message);
     } finally {
-      setLoading(false);
+      setSubmittingOrder(false);
     }
   };
 
-  const filtered = products.filter((p) => {
-    const matchDept = dept === "All" || p.category === dept;
-    const matchQuery = p.name.toLowerCase().includes(query.toLowerCase());
-    const matchStock = !inStockOnly || p.stock > 0;
-    return matchDept && matchQuery && matchStock;
+  const handleTrackOrders = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!trackPhone) return;
+    setFetchingTrack(true);
+    try {
+      const res = await fetch(`/api/orders/user?phone=${encodeURIComponent(trackPhone)}`);
+      const data = await res.json();
+      if (Array.isArray(data)) setTrackingOrders(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setFetchingTrack(false);
+    }
+  };
+
+  const filteredProducts = products.filter((p) => {
+    const matchCat = activeCategory === "All" || p.category === activeCategory;
+    const matchSub = activeSubCategory === "All" || p.subCategory === activeSubCategory;
+    const matchSearch =
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.barcode.toLowerCase().includes(search.toLowerCase());
+    return matchCat && matchSub && matchSearch;
   });
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-24">
-      {/* Top Header */}
-      <header className="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3">
-        <div className="max-w-md mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🏪</span>
-            <span className="font-bold text-base text-white tracking-tight">Nag Market</span>
-          </div>
-          <Link
-            href="/"
-            className="text-xs px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl transition"
-          >
-            Exit
-          </Link>
-        </div>
-      </header>
-
-      <main className="max-w-md mx-auto p-4 space-y-4">
-        {/* Quick Menu Card */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 space-y-3">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-300 font-medium">📍 Doorstep: <strong className="text-white">Main Town</strong></span>
-            <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full font-semibold">⚡ 25-30 Mins</span>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                fetchOrders();
-                setIsOrdersOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition"
-            >
-              📦 Orders
-            </button>
-            <a
-              href="https://wa.me/917075596910"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold"
-            >
-              💬 Support
-            </a>
-          </div>
-
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search products..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-          />
-
-          <div className="flex justify-between items-center text-xs">
-            <div className="flex gap-1 overflow-x-auto pb-1">
-              {["All", "Staples & Grains", "Dairy & Breakfast", "Snacks"].map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setDept(d)}
-                  className={`px-3 py-1 rounded-xl whitespace-nowrap text-[11px] font-medium transition ${
-                    dept === d ? "bg-blue-600 text-white" : "bg-slate-950 text-slate-400 border border-slate-800"
-                  }`}
-                >
-                  {d}
-                </button>
-              ))}
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between">
+      <div>
+        {/* Top Management Header Bar */}
+        <div className="bg-slate-900/95 border-b border-slate-800 px-4 py-2.5">
+          <div className="max-w-6xl mx-auto flex flex-wrap justify-between items-center gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-black tracking-wider text-emerald-400 font-mono">
+                NAG SUPERMARKET
+              </span>
+              <span className="hidden sm:inline text-xs text-slate-500">• Express Storefront</span>
             </div>
-            <button
-              onClick={() => setInStockOnly(!inStockOnly)}
-              className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold border ml-2 ${
-                inStockOnly ? "bg-blue-600 text-white border-blue-500" : "bg-slate-950 text-slate-400 border-slate-800"
-              }`}
-            >
-              In Stock
-            </button>
+            
+            {/* Store & Staff Links */}
+            <div className="flex items-center gap-2 text-xs font-semibold">
+              <Link
+                href="/admin/orders"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/20 text-blue-400 border border-blue-500/30 hover:bg-blue-600/30 rounded-xl transition shadow"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>🛍️ Live Orders</span>
+              </Link>
+              <Link
+                href="/admin/pos"
+                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 transition"
+              >
+                🖥️ POS
+              </Link>
+              <Link
+                href="/admin/products"
+                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 transition"
+              >
+                📦 Products
+              </Link>
+              <Link
+                href="/admin/analytics"
+                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 transition"
+              >
+                📊 Analytics
+              </Link>
+              <button
+                onClick={() => setIsTrackOpen(true)}
+                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-xl border border-slate-700 transition"
+              >
+                📍 Track
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Catalog */}
-        <div className="grid grid-cols-2 gap-3">
-          {filtered.map((product) => (
-            <div key={product.id} className="bg-slate-900 border border-slate-800 rounded-3xl p-3 flex flex-col justify-between">
-              <div className="aspect-square bg-slate-950 rounded-2xl flex items-center justify-center text-3xl border border-slate-800/80 mb-2">
-                🛒
-              </div>
-              <div className="space-y-0.5 mb-2">
-                <span className="text-[10px] text-slate-500 block truncate">{product.category}</span>
-                <h3 className="text-xs font-bold text-white line-clamp-1">{product.name}</h3>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-bold text-white">₹{product.price.toFixed(2)}</span>
-                  <span className="block text-[9px] text-slate-500">{product.stock > 0 ? "In Stock" : "Sold Out"}</span>
-                </div>
-                <button
-                  onClick={() => addToCart(product)}
-                  disabled={product.stock <= 0}
-                  className="px-3 py-1 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 text-white rounded-xl text-xs font-bold transition shadow"
-                >
-                  + Add
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </main>
-
-      {/* Floating Cart Button */}
-      {cart.length > 0 && (
-        <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto z-40">
-          <button
-            onClick={() => setIsCartOpen(true)}
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white p-3.5 rounded-2xl flex items-center justify-between shadow-xl transition"
-          >
-            <span className="bg-blue-700 px-2.5 py-0.5 rounded-lg text-xs font-bold">
-              {cart.reduce((n, i) => n + i.quantity, 0)} items
-            </span>
-            <span className="text-xs font-bold">Checkout (₹{cartTotal.toFixed(2)}) →</span>
-          </button>
-        </div>
-      )}
-
-      {/* Checkout Modal */}
-      {isCartOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-              <h2 className="text-sm font-bold text-white">Basket</h2>
-              <button onClick={() => setIsCartOpen(false)} className="text-xs px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg">✕</button>
-            </div>
-
-            <div className="space-y-2">
-              {cart.map((item) => (
-                <div key={item.id} className="flex justify-between items-center bg-slate-950 p-2 rounded-xl border border-slate-800 text-xs">
-                  <div>
-                    <p className="font-bold text-white">{item.name}</p>
-                    <p className="text-[10px] text-slate-400">₹{item.price}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => updateCartQty(item.id, -1)} className="w-6 h-6 bg-slate-800 rounded text-white">-</button>
-                    <span className="font-mono">{item.quantity}</span>
-                    <button onClick={() => updateCartQty(item.id, 1)} className="w-6 h-6 bg-slate-800 rounded text-white">+</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <form onSubmit={handleCheckout} className="space-y-2.5 pt-2">
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFulfillment("DELIVERY")}
-                  className={`flex-1 py-1.5 rounded-xl text-xs font-bold border transition ${
-                    fulfillment === "DELIVERY" ? "bg-blue-600 border-blue-500 text-white" : "bg-slate-950 border-slate-800 text-slate-400"
-                  }`}
-                >
-                  🏠 Delivery
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFulfillment("PICKUP")}
-                  className={`flex-1 py-1.5 rounded-xl text-xs font-bold border transition ${
-                    fulfillment === "PICKUP" ? "bg-blue-600 border-blue-500 text-white" : "bg-slate-950 border-slate-800 text-slate-400"
-                  }`}
-                >
-                  🏬 Store Pickup
-                </button>
-              </div>
-
+        {/* Customer Search & Cart Bar */}
+        <div className="sticky top-0 z-30 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 px-4 py-3">
+          <div className="max-w-6xl mx-auto flex items-center gap-3">
+            <div className="relative flex-1">
               <input
                 type="text"
-                placeholder="Full Name"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-xs text-white placeholder-slate-500 focus:outline-none"
+                placeholder="Search fresh groceries, atta, snacks, dairy, oils..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-2xl text-xs text-white outline-none focus:border-blue-500"
               />
-              <input
-                type="tel"
-                placeholder="Phone Number"
-                required
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-xs text-white placeholder-slate-500 focus:outline-none"
-              />
-              {fulfillment === "DELIVERY" && (
-                <textarea
-                  placeholder="Delivery Address"
-                  required
-                  rows={2}
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-xs text-white placeholder-slate-500 focus:outline-none"
-                />
-              )}
+              <span className="absolute left-3 top-2.5 text-slate-500 text-xs">🔍</span>
+            </div>
+            <button
+              onClick={() => setIsCartOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-xs font-bold transition shadow"
+            >
+              <span>🛒 Cart</span>
+              <span className="px-1.5 py-0.5 bg-emerald-800 rounded-full text-[10px] font-mono">
+                {cart.reduce((s, it) => s + it.cartQty, 0)}
+              </span>
+            </button>
+          </div>
+        </div>
 
+        {/* Main Content Area */}
+        <main className="max-w-6xl mx-auto p-4 space-y-4">
+          {/* Daily Deals / Super Banner */}
+          <div className="bg-gradient-to-r from-blue-900/40 via-emerald-900/30 to-slate-900 border border-blue-500/20 rounded-3xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-lg">
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                Fresh Stock Daily
+              </span>
+              <h2 className="text-base sm:text-lg font-extrabold text-white mt-1">
+                Order Online • Quick Store Pickup & Doorstep Delivery
+              </h2>
+              <p className="text-xs text-slate-400">Guaranteed quality on groceries, staples, dairy & essentials.</p>
+            </div>
+            <button
+              onClick={() => setActiveCategory("All")}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow whitespace-nowrap"
+            >
+              Shop All Deals →
+            </button>
+          </div>
+
+          {/* Department Categories (Level 1) */}
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
+            <button
+              onClick={() => {
+                setActiveCategory("All");
+                setActiveSubCategory("All");
+              }}
+              className={`px-3.5 py-2 rounded-xl font-semibold whitespace-nowrap transition ${
+                activeCategory === "All"
+                  ? "bg-blue-600 text-white shadow"
+                  : "bg-slate-900 text-slate-400 border border-slate-800 hover:text-white"
+              }`}
+            >
+              All Categories
+            </button>
+            {Object.keys(CATEGORIES).map((cat) => (
               <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition"
+                key={cat}
+                onClick={() => {
+                  setActiveCategory(cat);
+                  setActiveSubCategory("All");
+                }}
+                className={`px-3.5 py-2 rounded-xl font-semibold whitespace-nowrap transition ${
+                  activeCategory === cat
+                    ? "bg-blue-600 text-white shadow"
+                    : "bg-slate-900 text-slate-400 border border-slate-800 hover:text-white"
+                }`}
               >
-                {loading ? "Placing..." : `Order Now • ₹${cartTotal.toFixed(2)}`}
+                {cat}
               </button>
-            </form>
+            ))}
+          </div>
+
+          {/* Sub-Category Filter (Level 2) */}
+          {activeCategory !== "All" && CATEGORIES[activeCategory] && (
+            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px]">
+              <button
+                onClick={() => setActiveSubCategory("All")}
+                className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition ${
+                  activeSubCategory === "All"
+                    ? "bg-slate-800 text-emerald-400 border border-emerald-500/30 font-semibold"
+                    : "bg-slate-950 text-slate-400 hover:text-white border border-slate-800"
+                }`}
+              >
+                All {activeCategory}
+              </button>
+              {CATEGORIES[activeCategory].map((sub) => (
+                <button
+                  key={sub}
+                  onClick={() => setActiveSubCategory(sub)}
+                  className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition ${
+                    activeSubCategory === sub
+                      ? "bg-slate-800 text-emerald-400 border border-emerald-500/30 font-semibold"
+                      : "bg-slate-950 text-slate-400 hover:text-white border border-slate-800"
+                  }`}
+                >
+                  {sub}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Products Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
+            {filteredProducts.length === 0 ? (
+              <div className="col-span-full p-12 text-center text-slate-500 text-xs font-mono bg-slate-900/50 rounded-3xl border border-slate-800">
+                No items found in this section.
+              </div>
+            ) : (
+              filteredProducts.map((p) => {
+                const inCart = cart.find((i) => i.id === p.id);
+                return (
+                  <div
+                    key={p.id}
+                    className="bg-slate-900 border border-slate-800/90 rounded-2xl p-3 flex flex-col justify-between hover:border-slate-700 transition group shadow"
+                  >
+                    <div>
+                      <div className="w-full h-32 rounded-xl bg-slate-950 border border-slate-800/80 overflow-hidden flex items-center justify-center mb-2.5">
+                        {p.imageUrl ? (
+                          <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition" />
+                        ) : (
+                          <span className="text-3xl">📦</span>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-mono text-blue-400 line-clamp-1">
+                        {p.subCategory || p.category}
+                      </span>
+                      <h3 className="text-xs font-bold text-white line-clamp-2 mt-0.5 leading-snug">
+                        {p.name}
+                      </h3>
+                    </div>
+
+                    <div className="mt-3 pt-2.5 border-t border-slate-800 flex justify-between items-center">
+                      <div>
+                        {p.mrp && p.mrp > p.price && (
+                          <span className="text-[10px] font-mono text-slate-500 line-through block">
+                            ₹{p.mrp.toFixed(2)}
+                          </span>
+                        )}
+                        <span className="text-xs font-mono font-bold text-emerald-400">
+                          ₹{p.price.toFixed(2)}
+                        </span>
+                      </div>
+
+                      {inCart ? (
+                        <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800">
+                          <button
+                            onClick={() => updateCartQty(p.id, -1)}
+                            className="text-slate-400 hover:text-white font-bold text-xs"
+                          >
+                            -
+                          </button>
+                          <span className="text-xs font-mono text-white px-1">{inCart.cartQty}</span>
+                          <button
+                            onClick={() => updateCartQty(p.id, 1)}
+                            className="text-slate-400 hover:text-white font-bold text-xs"
+                          >
+                            +
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => addToCart(p)}
+                          className="px-3 py-1 bg-slate-800 hover:bg-emerald-600 text-white rounded-lg text-xs font-semibold transition"
+                        >
+                          + Add
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </main>
+      </div>
+
+      {/* Cart Drawer */}
+      {isCartOpen && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex justify-end">
+          <div className="w-full max-w-md bg-slate-900 border-l border-slate-800 h-full flex flex-col p-4 space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <span>🛒 Shopping Cart</span>
+                <span className="text-xs text-slate-400">({cart.length} items)</span>
+              </h2>
+              <button
+                onClick={() => {
+                  setIsCartOpen(false);
+                  setIsCheckingOut(false);
+                }}
+                className="text-slate-400 hover:text-white text-sm px-2"
+              >
+                ✕
+              </button>
+            </div>
+
+            {!isCheckingOut ? (
+              <>
+                <div className="flex-1 overflow-y-auto space-y-2.5 divide-y divide-slate-800/60">
+                  {cart.length === 0 ? (
+                    <div className="p-8 text-center text-slate-500 text-xs font-mono">
+                      Your shopping bag is empty.
+                    </div>
+                  ) : (
+                    cart.map((item) => (
+                      <div key={item.id} className="pt-2 flex justify-between items-center text-xs">
+                        <div className="pr-2">
+                          <h4 className="font-semibold text-white line-clamp-1">{item.name}</h4>
+                          <span className="text-emerald-400 font-mono font-bold">
+                            ₹{item.price.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 bg-slate-950 px-2 py-1 rounded-xl border border-slate-800">
+                          <button onClick={() => updateCartQty(item.id, -1)} className="text-slate-400 hover:text-white px-1">-</button>
+                          <span className="font-mono text-white text-xs">{item.cartQty}</span>
+                          <button onClick={() => updateCartQty(item.id, 1)} className="text-slate-400 hover:text-white px-1">+</button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="border-t border-slate-800 pt-3 space-y-2">
+                  <div className="flex justify-between items-center font-mono text-xs">
+                    <span className="text-slate-400">Total Bill Amount:</span>
+                    <span className="text-emerald-400 font-bold text-base">₹{totalAmount.toFixed(2)}</span>
+                  </div>
+                  <button
+                    disabled={cart.length === 0}
+                    onClick={() => setIsCheckingOut(true)}
+                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition shadow"
+                  >
+                    Proceed to Checkout →
+                  </button>
+                </div> 
+                              </>
+            ) : (
+              <form onSubmit={handlePlaceOrder} className="flex-1 flex flex-col justify-between space-y-3 text-xs">
+                <div className="space-y-3 overflow-y-auto pr-1">
+                  <div>
+                    <label className="block text-slate-400 font-semibold mb-1">Your Full Name *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Ramesh Babu"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 font-semibold mb-1">WhatsApp / Phone Number *</label>
+                    <input
+                      type="tel"
+                      required
+                      placeholder="e.g. 9876543210"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 font-semibold mb-1">Delivery Address</label>
+                    <textarea
+                      rows={2}
+                      placeholder="Door No, Street name, Landmark"
+                      value={deliveryAddress}
+                      onChange={(e) => setDeliveryAddress(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 font-semibold mb-1">Payment Method</label>
+                    <select
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:border-blue-500"
+                    >
+                      <option value="Cash on Delivery">Cash on Delivery</option>
+                      <option value="UPI / QR on Delivery">UPI / QR on Delivery</option>
+                      <option value="Store Pickup">Store Pickup</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-800 pt-3 space-y-2">
+                  <div className="flex justify-between font-mono">
+                    <span className="text-slate-400">Total Payable:</span>
+                    <span className="text-emerald-400 font-bold text-sm">₹{totalAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsCheckingOut(false)}
+                      className="w-1/3 py-2 bg-slate-800 text-slate-300 rounded-xl font-semibold"
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submittingOrder}
+                      className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-xl shadow"
+                    >
+                      {submittingOrder ? "Confirming..." : "Confirm & Place Order"}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
 
-      {/* Orders Tracker Modal (Customer Specific) */}
-      {isOrdersOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-4 space-y-3 max-h-[85vh] flex flex-col shadow-2xl">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-              <span className="text-sm font-bold text-white">📦 Your Orders</span>
-              <button onClick={() => setIsOrdersOpen(false)} className="text-xs px-2 py-1 bg-slate-800 text-slate-300 rounded-lg">✕</button>
+      {/* Customer Track Order Modal */}
+      {isTrackOpen && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <h3 className="text-sm font-bold text-white">📍 Track My Grocery Orders</h3>
+              <button onClick={() => setIsTrackOpen(false)} className="text-slate-400 hover:text-white">✕</button>
             </div>
-
-            {/* Quick phone filter to fetch orders if not logged in */}
-            <div className="flex gap-2">
+            <form onSubmit={handleTrackOrders} className="flex gap-2">
               <input
                 type="tel"
-                placeholder="Enter 10-digit mobile number"
-                value={ordersPhoneInput}
-                onChange={(e) => setOrdersPhoneInput(e.target.value)}
-                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none"
+                placeholder="Enter your phone number"
+                value={trackPhone}
+                onChange={(e) => setTrackPhone(e.target.value)}
+                className="flex-1 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs font-mono outline-none"
               />
               <button
-                onClick={() => fetchOrders(ordersPhoneInput)}
-                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition"
+                type="submit"
+                disabled={fetchingTrack}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold"
               >
-                Search
+                {fetchingTrack ? "Searching..." : "Track"}
               </button>
-            </div>
+            </form>
 
-            <div className="overflow-y-auto space-y-2 flex-1 pr-1">
-              {userOrders.length === 0 ? (
-                <p className="text-center py-6 text-slate-500 text-xs font-mono">
-                  No orders found for this number.
+            <div className="max-h-60 overflow-y-auto space-y-2.5">
+              {trackingOrders.length === 0 ? (
+                <p className="text-center text-slate-500 text-xs py-4 font-mono">
+                  Enter your number above to view recent orders.
                 </p>
               ) : (
-                userOrders.map((ord) => (
-                  <div key={ord.id} className="p-2.5 bg-slate-950 border border-slate-800/80 rounded-2xl space-y-1.5">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-mono text-blue-400 font-bold">#{ord.id.slice(0, 8).toUpperCase()}</span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300">{ord.status}</span>
+                trackingOrders.map((o) => (
+                  <div key={o.id} className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span className="font-mono text-blue-400 font-bold">#{o.id.slice(0, 8).toUpperCase()}</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-300">
+                        {o.status}
+                      </span>
                     </div>
-                    <div className="text-xs text-slate-400 font-mono">
-                      {ord.items?.map((it) => (
-                        <div key={it.id} className="flex justify-between">
-                          <span>{it.product?.name || "Item"} ×{it.quantity}</span>
-                          <span className="text-emerald-400">₹{(it.price * it.quantity).toFixed(2)}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex justify-between border-t border-slate-800 pt-1 text-xs font-bold">
-                      <span className="text-slate-400">Total:</span>
-                      <span className="text-emerald-400">₹{ord.totalAmount?.toFixed(2)}</span>
+                    <div className="flex justify-between font-mono text-slate-400 text-[11px] pt-1">
+                      <span>Total: ₹{o.totalAmount.toFixed(2)}</span>
+                      <span>{new Date(o.createdAt).toLocaleDateString()}</span>
                     </div>
                   </div>
                 ))
