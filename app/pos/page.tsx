@@ -168,7 +168,7 @@ export default function PosPage() {
       {/* Printable Thermal Receipt (Hidden on screen, visible only when printing) */}
       {lastSale && (
         <div id="thermal-receipt" className="hidden print:block font-mono text-black text-xs max-w-[280px] p-2 leading-tight">
-          <div className="text-center font-bold text-sm">NAG SUPERMARKET</div>
+          <div className="text-center font-bold text-sm">SIRILWOODS</div>
           <div className="text-center text-[10px]">Fresh Groceries & Daily Needs</div>
           <div className="text-center text-[10px]">Tel: +91 70755 96910</div>
           <div className="border-t border-dashed border-black my-1"></div>
