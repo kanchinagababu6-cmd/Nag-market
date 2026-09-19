@@ -64,9 +64,18 @@ export default function CustomerStorefront() {
   }, []);
 
   const addToCart = (product: Product) => {
+    if (product.stock <= 0) {
+      alert("Sorry, this item is out of stock!");
+      return;
+    }
+
     setCart((prev) => {
       const existing = prev.find((item) => item.id === product.id);
       if (existing) {
+        if (existing.cartQty >= product.stock) {
+          alert(`Only ${product.stock} units available in stock!`);
+          return prev;
+        }
         return prev.map((item) =>
           item.id === product.id ? { ...item, cartQty: item.cartQty + 1 } : item
         );
@@ -81,6 +90,10 @@ export default function CustomerStorefront() {
         .map((item) => {
           if (item.id === id) {
             const next = item.cartQty + delta;
+            if (delta > 0 && next > item.stock) {
+              alert(`Only ${item.stock} units available!`);
+              return item;
+            }
             return next > 0 ? { ...item, cartQty: next } : null;
           }
           return item;
@@ -150,13 +163,15 @@ export default function CustomerStorefront() {
     }
   };
 
+  // STEP 2: Filter out all items with stock <= 0 so out-of-stock items disappear completely
   const filteredProducts = products.filter((p) => {
+    const isAvailable = p.stock > 0;
     const matchCat = activeCategory === "All" || p.category === activeCategory;
     const matchSub = activeSubCategory === "All" || p.subCategory === activeSubCategory;
     const matchSearch =
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.barcode.toLowerCase().includes(search.toLowerCase());
-    return matchCat && matchSub && matchSearch;
+    return isAvailable && matchCat && matchSub && matchSearch;
   });
 
   return (
@@ -287,7 +302,7 @@ export default function CustomerStorefront() {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
             {filteredProducts.length === 0 ? (
               <div className="col-span-full p-12 text-center text-slate-500 text-xs font-mono bg-slate-900/50 rounded-3xl border border-slate-800">
-                No items found in this section.
+                No items currently available in this section.
               </div>
             ) : (
               filteredProducts.map((p) => {
@@ -413,7 +428,7 @@ export default function CustomerStorefront() {
                   >
                     Proceed to Checkout →
                   </button>
-                </div>               
+                </div>
               </>
             ) : (
               <form onSubmit={handlePlaceOrder} className="flex-1 flex flex-col justify-between space-y-3 text-xs">
@@ -424,7 +439,7 @@ export default function CustomerStorefront() {
                     <label className="block text-slate-400 font-semibold mb-1.5">How would you like your order?</label>
                     <div className="grid grid-cols-2 gap-2">
                       <button
-                        type="button"
+                                type="button"
                         onClick={() => setOrderType("DELIVERY")}
                         className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition ${
                           orderType === "DELIVERY"
@@ -432,7 +447,7 @@ export default function CustomerStorefront() {
                             : "bg-slate-950 text-slate-400 border-slate-800 hover:text-white"
                         }`}
                       >
-                                          <span>🛵</span>
+                        <span>🛵</span>
                         <span>Home Delivery</span>
                       </button>
                       <button
