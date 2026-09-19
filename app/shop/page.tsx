@@ -64,7 +64,7 @@ export default function ShopPage() {
 
   useEffect(() => {
     fetchCatalog();
-    const savedPhone = localStorage.getItem("sirilwoods_customer_phone");
+    const savedPhone = localStorage.getItem("nag_customer_phone");
     if (savedPhone) {
       setPhone(savedPhone);
       setOrdersPhoneInput(savedPhone);
@@ -127,7 +127,7 @@ export default function ShopPage() {
       });
 
       if (res.ok) {
-        localStorage.setItem("sirilwoods_customer_phone", phone);
+        localStorage.setItem("nag_customer_phone", phone);
         setOrdersPhoneInput(phone);
         setCart([]);
         setIsCartOpen(false);
@@ -156,20 +156,20 @@ export default function ShopPage() {
       <header className="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3">
         <div className="max-w-md mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-xl">🌲</span>
-            <span className="font-bold text-base text-white tracking-tight">Sirilwoods</span>
+            <span className="text-xl">🏪</span>
+            <span className="font-bold text-base text-white tracking-tight">Nag Market</span>
           </div>
           <Link
             href="/"
             className="text-xs px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl transition"
           >
-            Portal
+            Exit
           </Link>
         </div>
       </header>
 
       <main className="max-w-md mx-auto p-4 space-y-4">
-        {/* Delivery & Quick Menu Card */}
+        {/* Quick Menu Card */}
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 space-y-3">
           <div className="flex items-center justify-between text-xs">
             <span className="text-slate-300 font-medium">📍 Doorstep: <strong className="text-white">Main Town</strong></span>
@@ -184,7 +184,7 @@ export default function ShopPage() {
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition"
             >
-              📦 My Orders
+              📦 Orders
             </button>
             <a
               href="https://wa.me/917075596910"
@@ -192,7 +192,7 @@ export default function ShopPage() {
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold"
             >
-              💬 WhatsApp Support
+              💬 Support
             </a>
           </div>
 
@@ -278,7 +278,7 @@ export default function ShopPage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-              <h2 className="text-sm font-bold text-white">Your Basket</h2>
+              <h2 className="text-sm font-bold text-white">Basket</h2>
               <button onClick={() => setIsCartOpen(false)} className="text-xs px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg">✕</button>
             </div>
 
@@ -338,7 +338,7 @@ export default function ShopPage() {
               />
               {fulfillment === "DELIVERY" && (
                 <textarea
-                  placeholder="Delivery Address (House #, Landmark, Street)"
+                  placeholder="Delivery Address"
                   required
                   rows={2}
                   value={address}
@@ -352,22 +352,23 @@ export default function ShopPage() {
                 disabled={loading}
                 className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition"
               >
-                {loading ? "Placing Order..." : `Order Now • ₹${cartTotal.toFixed(2)}`}
+                {loading ? "Placing..." : `Order Now • ₹${cartTotal.toFixed(2)}`}
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* Orders Tracker Modal */}
+      {/* Orders Tracker Modal (Customer Specific) */}
       {isOrdersOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-4 space-y-3 max-h-[85vh] flex flex-col shadow-2xl">
             <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-              <span className="text-sm font-bold text-white">📦 Sirilwoods Orders</span>
+              <span className="text-sm font-bold text-white">📦 Your Orders</span>
               <button onClick={() => setIsOrdersOpen(false)} className="text-xs px-2 py-1 bg-slate-800 text-slate-300 rounded-lg">✕</button>
             </div>
 
+            {/* Quick phone filter to fetch orders if not logged in */}
             <div className="flex gap-2">
               <input
                 type="tel"
