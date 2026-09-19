@@ -40,14 +40,15 @@ export default function CustomerStorefront() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
-  // Checkout form
+  // Delivery vs Pickup selection
+  const [orderType, setOrderType] = useState<"DELIVERY" | "PICKUP">("DELIVERY");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash on Delivery");
   const [submittingOrder, setSubmittingOrder] = useState(false);
 
-  // Order Tracking modal
+  // Tracking modal
   const [trackPhone, setTrackPhone] = useState("");
   const [trackingOrders, setTrackingOrders] = useState<any[]>([]);
   const [isTrackOpen, setIsTrackOpen] = useState(false);
@@ -93,6 +94,9 @@ export default function CustomerStorefront() {
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerName || !customerPhone) return alert("Please enter your name and phone number");
+    if (orderType === "DELIVERY" && !deliveryAddress.trim()) {
+      return alert("Please enter your delivery address");
+    }
     if (!cart.length) return alert("Your cart is empty");
 
     setSubmittingOrder(true);
@@ -103,7 +107,8 @@ export default function CustomerStorefront() {
         body: JSON.stringify({
           customerName,
           customerPhone,
-          deliveryAddress,
+          orderType,
+          deliveryAddress: orderType === "DELIVERY" ? deliveryAddress : "Store Pickup",
           paymentMethod,
           totalAmount,
           items: cart.map((i) => ({
@@ -157,7 +162,7 @@ export default function CustomerStorefront() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between">
       <div>
-        {/* Customer Top Header: Brand on left, ONLY Track on right */}
+        {/* Simple Top Bar */}
         <div className="bg-slate-900/95 border-b border-slate-800 px-4 py-2.5">
           <div className="max-w-6xl mx-auto flex justify-between items-center">
             <Link href="/" className="flex items-center gap-2 group">
@@ -177,13 +182,13 @@ export default function CustomerStorefront() {
           </div>
         </div>
 
-        {/* Search Bar & Cart */}
+        {/* Search & Cart Bar */}
         <div className="sticky top-0 z-30 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 px-4 py-3">
           <div className="max-w-6xl mx-auto flex items-center gap-3">
             <div className="relative flex-1">
               <input
                 type="text"
-                placeholder="Search fresh groceries, atta, snacks, dairy, oils..."
+                placeholder="Search fresh groceries, atta, snacks, dairy..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-2xl text-xs text-white outline-none focus:border-blue-500"
@@ -353,7 +358,7 @@ export default function CustomerStorefront() {
         </main>
       </div>
 
-      {/* Cart Drawer */}
+      {/* Cart & Checkout Drawer */}
       {isCartOpen && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex justify-end">
           <div className="w-full max-w-md bg-slate-900 border-l border-slate-800 h-full flex flex-col p-4 space-y-4 shadow-2xl">
@@ -413,12 +418,44 @@ export default function CustomerStorefront() {
             ) : (
               <form onSubmit={handlePlaceOrder} className="flex-1 flex flex-col justify-between space-y-3 text-xs">
                 <div className="space-y-3 overflow-y-auto pr-1">
+                  
+                  {/* Fulfillment Selection */}
+                  <div>
+                    <label className="block text-slate-400 font-semibold mb-1.5">How would you like your order?</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setOrderType("DELIVERY")}
+                        className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition ${
+                          orderType === "DELIVERY"
+                            ? "bg-blue-600/20 text-blue-400 border-blue-500/40 shadow-sm"
+                            : "bg-slate-950 text-slate-400 border-slate-800 hover:text-white"
+                        }`}
+                      >
+                                          <span>🛵</span>
+                        <span>Home Delivery</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOrderType("PICKUP")}
+                        className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition ${
+                          orderType === "PICKUP"
+                            ? "bg-blue-600/20 text-blue-400 border-blue-500/40 shadow-sm"
+                            : "bg-slate-950 text-slate-400 border-slate-800 hover:text-white"
+                        }`}
+                      >
+                        <span>🏬</span>
+                        <span>Store Pickup</span>
+                      </button>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-slate-400 font-semibold mb-1">Your Full Name *</label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Ramesh Babu"
+                      placeholder="e.g. Rambabu"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                       className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:border-blue-500"
@@ -435,16 +472,22 @@ export default function CustomerStorefront() {
                       className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono outline-none focus:border-blue-500"
                     />
                   </div>
-                  <div>
-                    <label className="block text-slate-400 font-semibold mb-1">Delivery Address</label>
-                    <textarea
-                      rows={2}
-                      placeholder="Door No, Street name, Landmark"
-                      value={deliveryAddress}
-                      onChange={(e) => setDeliveryAddress(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:border-blue-500"
-                    />
-                  </div>
+
+                  {/* Show delivery address only for Home Delivery */}
+                  {orderType === "DELIVERY" && (
+                    <div>
+                      <label className="block text-slate-400 font-semibold mb-1">Delivery Address *</label>
+                      <textarea
+                        rows={2}
+                        required
+                        placeholder="Door No, Street name, Landmark"
+                        value={deliveryAddress}
+                        onChange={(e) => setDeliveryAddress(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:border-blue-500"
+                      ></textarea>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-slate-400 font-semibold mb-1">Payment Method</label>
                     <select
@@ -454,7 +497,7 @@ export default function CustomerStorefront() {
                     >
                       <option value="Cash on Delivery">Cash on Delivery</option>
                       <option value="UPI / QR on Delivery">UPI / QR on Delivery</option>
-                      <option value="Store Pickup">Store Pickup</option>
+                      {orderType === "PICKUP" && <option value="Pay at Counter">Pay at Counter</option>}
                     </select>
                   </div>
                 </div>
