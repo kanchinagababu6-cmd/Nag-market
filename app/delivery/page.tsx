@@ -34,8 +34,7 @@ export default function DeliveryDispatchHub() {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      // Fetches orders available for fulfillment / dispatch
-      const res = await fetch("/api/delivery/orders");
+      const res = await fetch("/api/orders");
       const data = await res.json();
       if (Array.isArray(data)) {
         setOrders(data);
@@ -75,7 +74,7 @@ export default function DeliveryDispatchHub() {
     }
   };
 
-  // Helper to determine whether an order is Home Delivery or Store Pickup
+  // Check if an order is Store Pickup or Home Delivery
   const isPickupOrder = (order: Order) => {
     return (
       order.orderType === "PICKUP" ||
@@ -84,7 +83,7 @@ export default function DeliveryDispatchHub() {
     );
   };
 
-  // Apply Home Delivery vs Store Pickup filter
+  // Filter list based on selected tab
   const filteredOrders = orders.filter((order) => {
     const isPickup = isPickupOrder(order);
     if (filterType === "DELIVERY") return !isPickup;
@@ -95,7 +94,7 @@ export default function DeliveryDispatchHub() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 pb-20">
       <div className="max-w-4xl mx-auto space-y-4">
-        {/* Top Header */}
+        {/* Header */}
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-wrap justify-between items-center gap-3">
           <div>
             <div className="flex items-center gap-2">
@@ -124,7 +123,7 @@ export default function DeliveryDispatchHub() {
           </div>
         </div>
 
-        {/* Filter Pills */}
+        {/* Home Delivery vs Store Pickup Filter Tabs */}
         <div className="flex gap-2">
           <button
             onClick={() => setFilterType("ALL")}
@@ -160,7 +159,7 @@ export default function DeliveryDispatchHub() {
           </button>
         </div>
 
-        {/* Orders List */}
+        {/* Orders Queue */}
         {loading ? (
           <div className="p-12 text-center text-xs font-mono text-slate-500 bg-slate-900/50 rounded-3xl border border-slate-800">
             Loading dispatch queue...
@@ -219,7 +218,7 @@ export default function DeliveryDispatchHub() {
                     </div>
                   </div>
 
-                  {/* Order Items Snippet */}
+                  {/* Items List */}
                   {order.items && order.items.length > 0 && (
                     <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800/70 text-xs space-y-1">
                       {order.items.map((it, idx) => (
@@ -235,9 +234,9 @@ export default function DeliveryDispatchHub() {
                     </div>
                   )}
 
-                  {/* Action Buttons */}
+                  {/* Action Controls */}
                   <div className="pt-2 flex flex-wrap items-center justify-end gap-2 text-xs">
-                    {/* Customer WhatsApp Contact */}
+                    {/* WhatsApp button */}
                     {order.customerPhone && (
                       <a
                         href={`https://wa.me/91${order.customerPhone.replace(/\D/g, "")}`}
@@ -249,10 +248,9 @@ export default function DeliveryDispatchHub() {
                       </a>
                     )}
 
-                    {/* Home Delivery specific controls (Only for Home Delivery) */}
+                    {/* Home Delivery Controls */}
                     {!pickup ? (
                       <>
-                        {/* Maps Link */}
                         <a
                           href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
                             order.deliveryAddress
@@ -264,7 +262,6 @@ export default function DeliveryDispatchHub() {
                           <span>🗺️ Route Maps</span>
                         </a>
 
-                        {/* Delivery Boy Dispatch Flow */}
                         {order.status !== "DELIVERED" && (
                           <button
                             disabled={updatingId === order.id}
@@ -287,7 +284,7 @@ export default function DeliveryDispatchHub() {
                         )}
                       </>
                     ) : (
-                      /* Store Pickup specific fulfillment */
+                      /* Store Pickup Counter Control */
                       order.status !== "COMPLETED" && order.status !== "DELIVERED" && (
                         <button
                           disabled={updatingId === order.id}
@@ -307,5 +304,4 @@ export default function DeliveryDispatchHub() {
       </div>
     </div>
   );
-                                                            }
-                          
+}
