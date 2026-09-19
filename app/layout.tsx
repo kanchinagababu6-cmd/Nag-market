@@ -5,7 +5,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Nag Supermarket - Online Grocery & Essentials",
+  title: "Sirilwoods - Online Grocery & Essentials",
   description: "Shop quality groceries, fresh produce, and daily essentials with ultra-fast doorstep delivery from Nag Supermarket.",
 };
 
