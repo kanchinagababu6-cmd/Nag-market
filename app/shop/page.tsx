@@ -167,7 +167,7 @@ export default function CustomerStorefront() {
           <div className="max-w-6xl mx-auto flex justify-between items-center">
             <Link href="/" className="flex items-center gap-2 group">
               <span className="text-sm sm:text-base font-black tracking-wider text-emerald-400 font-mono group-hover:text-emerald-300 transition">
-                NAG SUPERMARKET
+                SIRILWOODS
               </span>
               <span className="hidden sm:inline text-xs text-slate-500">• Express Storefront</span>
             </Link>
