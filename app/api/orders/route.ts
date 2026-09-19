@@ -2,6 +2,44 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
+// 1. GET: Fetch active orders for Delivery Hub and POS/Admin
+export async function GET(req: Request) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Return both Home Delivery and Store Pickup orders
+    const orders = await prisma.order.findMany({
+      where: {
+        status: {
+          in: ["ORDER_PLACED", "READY_FOR_PICKUP", "OUT_FOR_DELIVERY", "PACKED"],
+        },
+      },
+      include: {
+        items: {
+          include: {
+            product: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return NextResponse.json(orders);
+  } catch (error: any) {
+    console.error("Order fetch error:", error);
+    return NextResponse.json(
+      { error: error?.message || "Failed to fetch orders" },
+      { status: 500 }
+    );
+  }
+}
+
+// 2. POST: Create order from Customer Storefront & POS
 export async function POST(req: Request) {
   try {
     const session = await getSession();
@@ -84,7 +122,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, orderId: newOrder.id });
   } catch (error: any) {
     console.error("Order creation error:", error);
-    // Return the actual database error message so we can see any remaining schema mismatches
     return NextResponse.json(
       { error: error?.message || "Failed to create order" },
       { status: 500 }
