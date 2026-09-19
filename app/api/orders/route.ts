@@ -20,31 +20,37 @@ export async function POST(req: Request) {
         data: {
           customerName,
           customerPhone,
-          deliveryAddress,
+          deliveryAddress: deliveryAddress || "",
           paymentMethod: paymentMethod || "COD",
-          totalAmount: parseFloat(totalAmount),
+          totalAmount: parseFloat(totalAmount) || 0,
           status: "ORDER_PLACED",
           userId: session ? session.id : null,
           items: {
-            create: items.map((item: any) => ({
-              productId: item.id,
-              quantity: item.quantity,
-              price: item.price,
-            })),
+            create: items.map((item: any) => {
+              const pId = item.productId || item.id;
+              return {
+                productId: pId,
+                quantity: Number(item.quantity) || 1,
+                price: parseFloat(item.price) || 0,
+              };
+            }),
           },
         },
       });
 
       // Decrement stock for each purchased item
       for (const item of items) {
-        await tx.product.update({
-          where: { id: item.id },
-          data: {
-            stock: {
-              decrement: item.quantity,
+        const pId = item.productId || item.id;
+        if (pId) {
+          await tx.product.update({
+            where: { id: pId },
+            data: {
+              stock: {
+                decrement: Number(item.quantity) || 1,
+              },
             },
-          },
-        });
+          });
+        }
       }
 
       return order;
@@ -53,6 +59,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, orderId: newOrder.id });
   } catch (error: any) {
     console.error("Order error:", error);
-    return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message || "Failed to create order" },
+      { status: 500 }
+    );
   }
 }
