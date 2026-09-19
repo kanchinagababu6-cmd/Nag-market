@@ -37,8 +37,8 @@ export default function OperationsDashboard() {
       {/* Top Navbar */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-[#090e24]">
         <div className="flex items-center gap-2">
-          <span className="text-xl">🏪</span>
-          <span className="font-bold text-sm tracking-wide text-white">Nag Market</span>
+          <span className="text-xl">🌲</span>
+          <span className="font-bold text-sm tracking-wide text-white">Sirilwoods</span>
         </div>
         <div className="flex items-center gap-2 text-xs">
           <span className="px-3 py-1 rounded-xl bg-slate-800/80 text-slate-300 font-medium">
@@ -56,7 +56,7 @@ export default function OperationsDashboard() {
         <div className="bg-[#0f1738] border border-slate-800/80 rounded-3xl p-4 space-y-3 shadow-lg">
           <div>
             <span className="text-[10px] font-bold tracking-wider text-emerald-400 uppercase">
-              NAG SUPERMARKET
+              SIRILWOODS
             </span>
             <h1 className="text-lg font-bold text-white tracking-tight">
               Grocery Store & Operations
