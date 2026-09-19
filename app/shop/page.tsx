@@ -40,14 +40,14 @@ export default function CustomerStorefront() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
-  // Customer Details Form
+  // Checkout form
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash on Delivery");
   const [submittingOrder, setSubmittingOrder] = useState(false);
 
-  // Track Order Modal
+  // Order Tracking modal
   const [trackPhone, setTrackPhone] = useState("");
   const [trackingOrders, setTrackingOrders] = useState<any[]>([]);
   const [isTrackOpen, setIsTrackOpen] = useState(false);
@@ -92,8 +92,8 @@ export default function CustomerStorefront() {
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerName || !customerPhone) return alert("Please fill name and phone");
-    if (!cart.length) return alert("Cart is empty");
+    if (!customerName || !customerPhone) return alert("Please enter your name and phone number");
+    if (!cart.length) return alert("Your cart is empty");
 
     setSubmittingOrder(true);
     try {
@@ -157,54 +157,27 @@ export default function CustomerStorefront() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between">
       <div>
-        {/* Top Management Header Bar */}
+        {/* Customer Top Header: Brand on left, ONLY Track on right */}
         <div className="bg-slate-900/95 border-b border-slate-800 px-4 py-2.5">
-          <div className="max-w-6xl mx-auto flex flex-wrap justify-between items-center gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-black tracking-wider text-emerald-400 font-mono">
+          <div className="max-w-6xl mx-auto flex justify-between items-center">
+            <Link href="/" className="flex items-center gap-2 group">
+              <span className="text-sm sm:text-base font-black tracking-wider text-emerald-400 font-mono group-hover:text-emerald-300 transition">
                 NAG SUPERMARKET
               </span>
               <span className="hidden sm:inline text-xs text-slate-500">• Express Storefront</span>
-            </div>
-            
-            {/* Store & Staff Links */}
-            <div className="flex items-center gap-2 text-xs font-semibold">
-              <Link
-                href="/admin/orders"
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/20 text-blue-400 border border-blue-500/30 hover:bg-blue-600/30 rounded-xl transition shadow"
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span>🛍️ Live Orders</span>
-              </Link>
-              <Link
-                href="/admin/pos"
-                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 transition"
-              >
-                🖥️ POS
-              </Link>
-              <Link
-                href="/admin/products"
-                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 transition"
-              >
-                📦 Products
-              </Link>
-              <Link
-                href="/admin/analytics"
-                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 transition"
-              >
-                📊 Analytics
-              </Link>
-              <button
-                onClick={() => setIsTrackOpen(true)}
-                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-xl border border-slate-700 transition"
-              >
-                📍 Track
-              </button>
-            </div>
+            </Link>
+
+            <button
+              onClick={() => setIsTrackOpen(true)}
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-xl border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition"
+            >
+              <span>📍</span>
+              <span>Track Orders</span>
+            </button>
           </div>
         </div>
 
-        {/* Customer Search & Cart Bar */}
+        {/* Search Bar & Cart */}
         <div className="sticky top-0 z-30 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 px-4 py-3">
           <div className="max-w-6xl mx-auto flex items-center gap-3">
             <div className="relative flex-1">
@@ -229,9 +202,8 @@ export default function CustomerStorefront() {
           </div>
         </div>
 
-        {/* Main Content Area */}
+        {/* Storefront Products */}
         <main className="max-w-6xl mx-auto p-4 space-y-4">
-          {/* Daily Deals / Super Banner */}
           <div className="bg-gradient-to-r from-blue-900/40 via-emerald-900/30 to-slate-900 border border-blue-500/20 rounded-3xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-lg">
             <div>
               <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
@@ -243,20 +215,17 @@ export default function CustomerStorefront() {
               <p className="text-xs text-slate-400">Guaranteed quality on groceries, staples, dairy & essentials.</p>
             </div>
             <button
-              onClick={() => setActiveCategory("All")}
+              onClick={() => { setActiveCategory("All"); setActiveSubCategory("All"); }}
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow whitespace-nowrap"
             >
               Shop All Deals →
             </button>
           </div>
 
-          {/* Department Categories (Level 1) */}
+          {/* Categories */}
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
             <button
-              onClick={() => {
-                setActiveCategory("All");
-                setActiveSubCategory("All");
-              }}
+              onClick={() => { setActiveCategory("All"); setActiveSubCategory("All"); }}
               className={`px-3.5 py-2 rounded-xl font-semibold whitespace-nowrap transition ${
                 activeCategory === "All"
                   ? "bg-blue-600 text-white shadow"
@@ -268,10 +237,7 @@ export default function CustomerStorefront() {
             {Object.keys(CATEGORIES).map((cat) => (
               <button
                 key={cat}
-                onClick={() => {
-                  setActiveCategory(cat);
-                  setActiveSubCategory("All");
-                }}
+                onClick={() => { setActiveCategory(cat); setActiveSubCategory("All"); }}
                 className={`px-3.5 py-2 rounded-xl font-semibold whitespace-nowrap transition ${
                   activeCategory === cat
                     ? "bg-blue-600 text-white shadow"
@@ -283,7 +249,7 @@ export default function CustomerStorefront() {
             ))}
           </div>
 
-          {/* Sub-Category Filter (Level 2) */}
+          {/* Sub-Category Filter */}
           {activeCategory !== "All" && CATEGORIES[activeCategory] && (
             <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px]">
               <button
@@ -397,10 +363,7 @@ export default function CustomerStorefront() {
                 <span className="text-xs text-slate-400">({cart.length} items)</span>
               </h2>
               <button
-                onClick={() => {
-                  setIsCartOpen(false);
-                  setIsCheckingOut(false);
-                }}
+                onClick={() => { setIsCartOpen(false); setIsCheckingOut(false); }}
                 className="text-slate-400 hover:text-white text-sm px-2"
               >
                 ✕
@@ -445,8 +408,8 @@ export default function CustomerStorefront() {
                   >
                     Proceed to Checkout →
                   </button>
-                </div> 
-                              </>
+                </div>               
+              </>
             ) : (
               <form onSubmit={handlePlaceOrder} className="flex-1 flex flex-col justify-between space-y-3 text-xs">
                 <div className="space-y-3 overflow-y-auto pr-1">
@@ -524,7 +487,7 @@ export default function CustomerStorefront() {
         </div>
       )}
 
-      {/* Customer Track Order Modal */}
+      {/* Track Modal */}
       {isTrackOpen && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-4 shadow-2xl">
