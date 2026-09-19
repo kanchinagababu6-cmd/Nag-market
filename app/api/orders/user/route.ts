@@ -1,21 +1,32 @@
-import { PrismaClient } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
-const prisma = new PrismaClient();
-
-export async function GET(req: Request) {
+export async function GET(request: Request) {
   try {
     const session = await getSession();
-    const { searchParams } = new URL(req.url);
-    const phone = searchParams.get("phone");
 
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { role } = session;
+    const isStaff =
+      role === "OWNER" ||
+      role === "MANAGER" ||
+      role === "SALES_BOY" ||
+      role === "DELIVERY_AGENT";
+
+    if (!isStaff) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // For delivery agents, return all orders eligible for dispatch/transit
+    // For admin/managers, return all store orders
     const orders = await prisma.order.findMany({
-      where: session?.id
-        ? { OR: [{ userId: session.id }, { customerPhone: phone || undefined }] }
-        : phone
-        ? { customerPhone: phone }
-        : {},
+      orderBy: {
+        createdAt: "desc",
+      },
       include: {
         items: {
           include: {
@@ -23,12 +34,14 @@ export async function GET(req: Request) {
           },
         },
       },
-      orderBy: { createdAt: "desc" },
-      take: 20,
     });
 
     return NextResponse.json(orders);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error("Orders fetch error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch orders" },
+      { status: 500 }
+    );
   }
 }
