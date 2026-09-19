@@ -15,10 +15,9 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      {/* Clean Top Navigation Bar */}
+      {/* Clean Navbar */}
       <nav className="bg-slate-900/95 border-b border-slate-800 px-4 py-3 sticky top-0 z-40 backdrop-blur-md">
         <div className="max-w-5xl mx-auto flex justify-between items-center">
-          {/* Left: Brand / Home Link */}
           <Link
             href="/"
             className="text-sm sm:text-base font-black tracking-wider text-emerald-400 font-mono hover:text-emerald-300 transition"
@@ -26,24 +25,24 @@ export default async function HomePage() {
             NAG MARKET
           </Link>
 
-          {/* Right: User Name & Logout Button */}
           <div className="flex items-center gap-3">
             <span className="text-xs sm:text-sm font-semibold text-slate-200">
               {session.name}
             </span>
-            <Link
-              href="/api/auth/logout"
-              className="text-xs px-3 py-1.5 bg-rose-500/10 text-rose-300 border border-rose-500/20 hover:bg-rose-500/20 rounded-xl transition font-medium"
-            >
-              Logout
-            </Link>
+            <form action="/api/auth/logout" method="POST">
+              <button
+                type="submit"
+                className="text-xs px-3 py-1.5 bg-rose-500/10 text-rose-300 border border-rose-500/20 hover:bg-rose-500/20 rounded-xl transition font-medium"
+              >
+                Logout
+              </button>
+            </form>
           </div>
         </div>
       </nav>
 
       {/* Main Container */}
       <main className="w-full max-w-5xl mx-auto p-4 space-y-6">
-        {/* Role & Station Header */}
         <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl shadow-sm">
           <span className="text-[10px] font-mono uppercase tracking-wider text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20">
             {session.role} WORKSTATION
@@ -52,9 +51,8 @@ export default async function HomePage() {
           <p className="text-xs text-slate-400">Choose a section below to get started</p>
         </div>
 
-        {/* Grid of Workstations */}
+        {/* Workstation Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* 1. Online Customer Storefront */}
           <Link
             href="/shop"
             className="p-5 bg-slate-900 border border-slate-800 hover:border-blue-500 rounded-3xl flex flex-col justify-between transition group shadow-sm"
@@ -69,7 +67,6 @@ export default async function HomePage() {
             </span>
           </Link>
 
-          {/* 2. Billing POS Terminal */}
           {isSalesStaff && (
             <Link
               href="/pos"
@@ -86,7 +83,6 @@ export default async function HomePage() {
             </Link>
           )}
 
-          {/* 3. Product & Stock Restock */}
           {isSalesStaff && (
             <Link
               href="/admin/products"
@@ -103,7 +99,6 @@ export default async function HomePage() {
             </Link>
           )}
 
-          {/* 4. Delivery Fleet Dispatch */}
           {isDeliveryStaff && (
             <Link
               href="/delivery"
@@ -120,7 +115,6 @@ export default async function HomePage() {
             </Link>
           )}
 
-          {/* 5. Executive Analytics */}
           {isOwnerOrManager && (
             <Link
               href="/admin/analytics"
@@ -137,7 +131,6 @@ export default async function HomePage() {
             </Link>
           )}
 
-          {/* 6. Staff Accounts */}
           {isOwnerOrManager && (
             <Link
               href="/admin/staff"
