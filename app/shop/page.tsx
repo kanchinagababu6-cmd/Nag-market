@@ -3,118 +3,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
-const CATEGORIES: Record<string, string[]> = {
-  "Staples & Grains": ["Atta, Flours & Sooji", "Rice & Rice Products", "Dals & Pulses", "Edible Oils & Ghee", "Sugar, Jaggery & Salt", "Whole & Ground Spices"],
-  "Dairy & Breakfast": ["Fresh Milk & Curd", "Paneer, Butter & Cheese", "Bread, Pav & Bakery", "Eggs", "Cereals, Oats & Muesli", "Tea, Coffee & Health Drinks"],
-  "Snacks & Packaged Foods": ["Biscuits, Cookies & Rusks", "Namkeen, Chips & Savory Snacks", "Noodles, Pasta & Vermicelli", "Chocolates & Candies", "Sauces, Ketchup, Spreads & Jams", "Instant Ready-to-Eat Mixes"],
-  "Beverages": ["Soft Drinks & Carbonated Sodas", "Fruit Juices & Concentrates", "Packaged Bottled Water & Soda", "Energy & Sports Drinks"],
-  "Fresh Produce": ["Daily Fresh Vegetables", "Seasonal & Exotic Fruits", "Herbs, Lemon, Ginger & Garlic"],
-  "Personal Care & Hygiene": ["Bath Soaps, Body Wash & Handwash", "Hair Care", "Dental Care", "Skincare, Lotions & Powders", "Feminine Hygiene & Baby Care"],
-  "Household & Cleaning": ["Detergents & Fabric Softeners", "Dishwashing Bars & Liquids", "Surface Cleaners & Disinfectants", "Mosquito Repellents & Freshers", "Kitchen Rolls, Foil & Garbage Bags"],
-  "Puja & Pooja Essentials": ["Agarbatti, Dhoop & Camphor", "Puja Oil & Cotton Wicks"],
-};
-
-const DELIVERY_THRESHOLD = 499;
-const BASE_DELIVERY_FEE = 30;
-
-interface Product {
-  id: string;
-  name: string;
-  barcode: string;
-  category: string;
-  subCategory: string;
-  price: number;
-  mrp?: number;
-  discount?: number;
-  stock: number;
-  imageUrl?: string;
-  weight?: string;
-}
-
-interface CartItem extends Product {
-  cartQty: number;
-}
-
-export default function CustomerStorefront() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [search, setSearch] = useState("");
-  const [isListening, setIsListening] = useState(false);
-  const [activeCategory, setActiveCategory] = useState("All");
-  const [activeSubCategory, setActiveSubCategory] = useState("All");
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
-
-  // Delivery & Checkout state
-  const [orderType, setOrderType] = useState<"DELIVERY" | "PICKUP">("DELIVERY");
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [deliveryAddress, setDeliveryAddress] = useState("");
-  const [deliverySlot, setDeliverySlot] = useState("⚡ Express (30–45 Mins)");
-  const [riderInstruction, setRiderInstruction] = useState("");
-  const [tipAmount, setTipAmount] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState("UPI / QR Code");
-  const [submittingOrder, setSubmittingOrder] = useState(false);
-  const [locating, setLocating] = useState(false);
-
-  // Tracking modal
-  const [trackPhone, setTrackPhone] = useState("");
-  const [trackingOrders, setTrackingOrders] = useState<any[]>([]);
-  const [isTrackOpen, setIsTrackOpen] = useState(false);
-  const [fetchingTrack, setFetchingTrack] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/products")
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) setProducts(data);
-      })
-      .catch((err) => console.error("Error loading products:", err));
-  }, []);
-
-  // Voice Search (Speech Recognition)
-  const toggleVoiceSearch = () => {
-    if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
-      alert("Voice search is not supported on this browser.");
-      return;
-    }
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-IN";
-    recognition.interimResults = false;
-
-    if (!isListening) {
-      recognition.start();
-      setIsListening(true);
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setSearch(transcript);
-        setIsListening(false);
-      };
-      recognition.onerror = () => setIsListening(false);
-      recognition.Here is a modular, production-ready upgrade for your customer storefront (`app/shop/page.tsx`) that implements the key customer platform features:
-
-1. **Free Delivery Progress Tracker**: Shows how much more to add to unlock free delivery (e.g., threshold set at ₹499).
-2. **GPS Geolocation ("Use My Location")**: Auto-populates delivery coordinates/address using the device's location.
-3. **Delivery Rider Instructions**: Pre-set tags (`Leave at door`, `Don't ring bell`, `Call upon arrival`).
-4. **Driver Tip Selection**: Optional tips (₹10, ₹20, ₹30) added directly to order calculation.
-5. **Scheduled Slots**: Choice between *Express (20–45 Mins)* or scheduled delivery windows.
-6. **Live UPI Dynamic QR Generation**: Instant scan-and-pay via BHIM/UPI link generator (`upi://pay`).
-7. **Post-Order WhatsApp Receipt Dispatch**: Direct link opening WhatsApp with formatted order summary for the store and customer.
-
----
-
-### Step 1: Update Storefront (`app/shop/page.tsx`)
-
-Replace your `app/shop/page.tsx` with this comprehensive version:
-
-```tsx
-"use client";
-
-import { useState, useEffect } from "react";
-import Link from "next/link";
-
 const FREE_DELIVERY_THRESHOLD = 499;
 const DELIVERY_FEE = 40;
 
@@ -154,7 +42,7 @@ export default function CustomerStorefront() {
   const [locating, setLocating] = useState(false);
   const [submittingOrder, setSubmittingOrder] = useState(false);
 
-  // Success Modal & UPI Modal
+  // Success Modal
   const [placedOrder, setPlacedOrder] = useState<any | null>(null);
 
   useEffect(() => {
@@ -197,13 +85,13 @@ export default function CustomerStorefront() {
     );
   };
 
-  // Calculations
+  // Pricing calculations
   const rawTotal = cart.reduce((sum, item) => sum + item.price * item.cartQty, 0);
   const isFreeDelivery = rawTotal >= FREE_DELIVERY_THRESHOLD || orderType === "PICKUP";
   const appliedDeliveryFee = isFreeDelivery ? 0 : DELIVERY_FEE;
   const finalPayable = rawTotal + appliedDeliveryFee + (orderType === "DELIVERY" ? driverTip : 0);
 
-  // GPS Location detection
+  // GPS Geolocation
   const handleDetectLocation = () => {
     if (!navigator.geolocation) {
       alert("Geolocation is not supported by your browser");
@@ -214,9 +102,8 @@ export default function CustomerStorefront() {
       async (pos) => {
         const { latitude, longitude } = pos.coords;
         try {
-          // OpenStreetMap Reverse Geocoding
           const res = await fetch(
-            `[https://nominatim.openstreetmap.org/reverse?lat=$](https://nominatim.openstreetmap.org/reverse?lat=$){latitude}&lon=${longitude}&format=json`
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
           );
           const data = await res.json();
           setDeliveryAddress(data.display_name || `Lat: ${latitude}, Lon: ${longitude}`);
@@ -226,7 +113,7 @@ export default function CustomerStorefront() {
           setLocating(false);
         }
       },
-      (err) => {
+      () => {
         alert("Location access denied. Please enter address manually.");
         setLocating(false);
       }
@@ -241,7 +128,7 @@ export default function CustomerStorefront() {
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerName || !customerPhone) return alert("Please fill name & phone number");
+    if (!customerName || !customerPhone) return alert("Please enter name & phone number");
     if (orderType === "DELIVERY" && !deliveryAddress.trim()) {
       return alert("Please enter delivery address");
     }
@@ -278,7 +165,6 @@ export default function CustomerStorefront() {
           amount: finalPayable,
           customerName,
           customerPhone,
-          items: [...cart],
           method: paymentMethod,
         });
         setCart([]);
@@ -294,6 +180,7 @@ export default function CustomerStorefront() {
     }
   };
 
+  // Filter out any out-of-stock items (stock <= 0)
   const filteredProducts = products.filter((p) => {
     const inStock = p.stock > 0;
     const catMatch = activeCategory === "All" || p.category === activeCategory;
@@ -318,9 +205,8 @@ export default function CustomerStorefront() {
         </div>
       </div>
 
-      {/* Product Catalog */}
+      {/* Catalog */}
       <div className="max-w-5xl mx-auto p-4 space-y-4 w-full">
-        {/* Search */}
         <input
           type="text"
           placeholder="Search rice, dal, milk, biscuits..."
@@ -329,7 +215,6 @@ export default function CustomerStorefront() {
           className="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-emerald-500"
         />
 
-        {/* Product Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {filteredProducts.map((p) => (
             <div
@@ -360,7 +245,7 @@ export default function CustomerStorefront() {
         </div>
       </div>
 
-      {/* Cart & Intelligent Checkout Drawer */}
+      {/* Cart Drawer */}
       {isCartOpen && (
         <div className="fixed inset-0 bg-black/75 z-50 flex justify-end">
           <div className="w-full max-w-md bg-slate-900 h-full p-4 flex flex-col justify-between border-l border-slate-800 overflow-y-auto">
@@ -370,7 +255,6 @@ export default function CustomerStorefront() {
                 <button onClick={() => setIsCartOpen(false)} className="text-slate-400 hover:text-white">✕</button>
               </div>
 
-              {/* Free Delivery Meter */}
               {orderType === "DELIVERY" && (
                 <div className="my-3 p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs">
                   {rawTotal >= FREE_DELIVERY_THRESHOLD ? (
@@ -392,7 +276,6 @@ export default function CustomerStorefront() {
                 </div>
               )}
 
-              {/* Items List */}
               <div className="space-y-2 my-2 max-h-52 overflow-y-auto">
                 {cart.map((item) => (
                   <div key={item.id} className="flex justify-between items-center text-xs py-1 border-b border-slate-800/40">
@@ -409,10 +292,8 @@ export default function CustomerStorefront() {
                 ))}
               </div>
 
-              {/* Checkout Form */}
               {isCheckingOut && (
                 <div className="space-y-3 pt-2 text-xs border-t border-slate-800">
-                  {/* Fulfillment Switch */}
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
@@ -449,14 +330,13 @@ export default function CustomerStorefront() {
 
                   {orderType === "DELIVERY" && (
                     <>
-                      {/* GPS Autodetect Button */}
                       <div className="flex justify-between items-center">
                         <label className="text-slate-400">Delivery Address</label>
                         <button
                           type="button"
                           onClick={handleDetectLocation}
                           disabled={locating}
-                          className="text-[11px] text-blue-400 hover:underline flex items-center gap-1"
+                          className="text-[11px] text-blue-400 hover:underline"
                         >
                           📍 {locating ? "Locating..." : "Use Current GPS"}
                         </button>
@@ -469,7 +349,6 @@ export default function CustomerStorefront() {
                         className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl"
                       />
 
-                      {/* Delivery Slots */}
                       <div>
                         <label className="text-slate-400 block mb-1">Preferred Slot</label>
                         <select
@@ -483,7 +362,6 @@ export default function CustomerStorefront() {
                         </select>
                       </div>
 
-                      {/* Delivery Instructions */}
                       <div>
                         <label className="text-slate-400 block mb-1">Rider Instructions</label>
                         <div className="flex flex-wrap gap-1.5">
@@ -500,7 +378,6 @@ export default function CustomerStorefront() {
                         </div>
                       </div>
 
-                      {/* Driver Tip */}
                       <div>
                         <label className="text-slate-400 block mb-1">Driver Tip</label>
                         <div className="flex gap-2">
@@ -519,7 +396,6 @@ export default function CustomerStorefront() {
                     </>
                   )}
 
-                  {/* Payment Selection */}
                   <div>
                     <label className="text-slate-400 block mb-1">Payment</label>
                     <div className="grid grid-cols-2 gap-2">
@@ -543,7 +419,6 @@ export default function CustomerStorefront() {
               )}
             </div>
 
-            {/* Bill Summary & Actions */}
             <div className="border-t border-slate-800 pt-3 space-y-2 text-xs">
               <div className="space-y-1 text-slate-400">
                 <div className="flex justify-between">
@@ -592,7 +467,7 @@ export default function CustomerStorefront() {
         </div>
       )}
 
-      {/* Post-Order Success & Instant UPI Modal */}
+      {/* Order Success Modal */}
       {placedOrder && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full text-center space-y-4">
@@ -603,10 +478,9 @@ export default function CustomerStorefront() {
             {placedOrder.method === "UPI" && (
               <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
                 <p className="text-xs text-slate-300 font-semibold">Scan with GPay / PhonePe / Paytm</p>
-                {/* Dynamic QR API using standard UPI URI scheme */}
                 <div className="w-40 h-40 mx-auto bg-white p-2 rounded-xl flex items-center justify-center">
                   <img
-                    src={`[https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=$](https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=$){encodeURIComponent(
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(
                       `upi://pay?pa=sirilwoods@upi&pn=Sirilwoods&am=${placedOrder.amount}&cu=INR`
                     )}`}
                     alt="UPI Payment QR"
@@ -621,7 +495,7 @@ export default function CustomerStorefront() {
 
             <div className="space-y-2">
               <a
-                href={`[https://wa.me/91$](https://wa.me/91$){placedOrder.customerPhone}?text=${encodeURIComponent(
+                href={`https://wa.me/91${placedOrder.customerPhone}?text=${encodeURIComponent(
                   `*Sirilwoods Supermarket Receipt*\nOrder ID: #${placedOrder.id.slice(0, 8)}\nTotal: ₹${placedOrder.amount}\nStatus: Confirmed\nThank you for shopping with us!`
                 )}`}
                 target="_blank"
